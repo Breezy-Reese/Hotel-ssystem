@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const generateRef = require("../utils/generateRef");
 
 const saleItemSchema = new mongoose.Schema(
   {
@@ -32,7 +33,7 @@ saleSchema.virtual("total").get(function total() {
 });
 
 saleSchema.pre("save", function generateReceipt(next) {
-  if (!this.receiptNumber) this.receiptNumber = `RCT-${Date.now().toString(36).toUpperCase()}`;
+  if (!this.receiptNumber) this.receiptNumber = generateRef("RCT");
   next();
 });
 

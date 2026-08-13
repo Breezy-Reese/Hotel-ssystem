@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const generateRef = require("../utils/generateRef");
 
 const maintenanceSchema = new mongoose.Schema(
   {
@@ -16,7 +17,7 @@ const maintenanceSchema = new mongoose.Schema(
 );
 
 maintenanceSchema.pre("save", function generateTicket(next) {
-  if (!this.ticketNumber) this.ticketNumber = `MT-${Date.now().toString(36).toUpperCase()}`;
+  if (!this.ticketNumber) this.ticketNumber = generateRef("MT");
   next();
 });
 

@@ -33,11 +33,9 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="min-w-0">
               <p className="font-display truncate text-sm leading-tight font-semibold">
-                HospitalityPro — Hotel
+                Aurelia Suites
               </p>
-              <p className="truncate text-[11px] text-sidebar-foreground/60">
-                Hospitality Suite
-              </p>
+              <p className="truncate text-[11px] text-sidebar-foreground/60">Hospitality Suite</p>
             </div>
           )}
         </div>

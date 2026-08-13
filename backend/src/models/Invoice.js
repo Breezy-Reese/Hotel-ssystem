@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const generateRef = require("../utils/generateRef");
 
 const chargeSchema = new mongoose.Schema(
   {
@@ -40,7 +41,7 @@ invoiceSchema.virtual("total").get(function total() {
 });
 
 invoiceSchema.pre("save", function generateInvoiceNumber(next) {
-  if (!this.invoiceNumber) this.invoiceNumber = `INV-${Date.now().toString(36).toUpperCase()}`;
+  if (!this.invoiceNumber) this.invoiceNumber = generateRef("INV");
   next();
 });
 

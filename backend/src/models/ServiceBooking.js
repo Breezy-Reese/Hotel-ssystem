@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const generateRef = require("../utils/generateRef");
 
 const serviceBookingSchema = new mongoose.Schema(
   {
@@ -16,8 +17,8 @@ const serviceBookingSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-serviceBookingSchema.pre("save", function generateRef(next) {
-  if (!this.ref) this.ref = `SB-${Date.now().toString(36).toUpperCase()}`;
+serviceBookingSchema.pre("save", function setRef(next) {
+  if (!this.ref) this.ref = generateRef("SB");
   next();
 });
 

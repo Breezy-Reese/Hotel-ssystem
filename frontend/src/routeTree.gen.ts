@@ -22,6 +22,7 @@ import { Route as HousekeepingRouteImport } from './routes/housekeeping'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as InvoicesRouteImport } from './routes/invoices'
 import { Route as KitchenRouteImport } from './routes/kitchen'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as LoyaltyRouteImport } from './routes/loyalty'
 import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as MenuRouteImport } from './routes/menu'
@@ -105,6 +106,11 @@ const InvoicesRoute = InvoicesRouteImport.update({
 const KitchenRoute = KitchenRouteImport.update({
   id: '/kitchen',
   path: '/kitchen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoyaltyRoute = LoyaltyRouteImport.update({
@@ -217,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof InventoryRoute
   '/invoices': typeof InvoicesRoute
   '/kitchen': typeof KitchenRoute
+  '/login': typeof LoginRoute
   '/loyalty': typeof LoyaltyRoute
   '/maintenance': typeof MaintenanceRoute
   '/menu': typeof MenuRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof InventoryRoute
   '/invoices': typeof InvoicesRoute
   '/kitchen': typeof KitchenRoute
+  '/login': typeof LoginRoute
   '/loyalty': typeof LoyaltyRoute
   '/maintenance': typeof MaintenanceRoute
   '/menu': typeof MenuRoute
@@ -286,6 +294,7 @@ export interface FileRoutesById {
   '/inventory': typeof InventoryRoute
   '/invoices': typeof InvoicesRoute
   '/kitchen': typeof KitchenRoute
+  '/login': typeof LoginRoute
   '/loyalty': typeof LoyaltyRoute
   '/maintenance': typeof MaintenanceRoute
   '/menu': typeof MenuRoute
@@ -322,6 +331,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/invoices'
     | '/kitchen'
+    | '/login'
     | '/loyalty'
     | '/maintenance'
     | '/menu'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/invoices'
     | '/kitchen'
+    | '/login'
     | '/loyalty'
     | '/maintenance'
     | '/menu'
@@ -390,6 +401,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/invoices'
     | '/kitchen'
+    | '/login'
     | '/loyalty'
     | '/maintenance'
     | '/menu'
@@ -425,6 +437,7 @@ export interface RootRouteChildren {
   InventoryRoute: typeof InventoryRoute
   InvoicesRoute: typeof InvoicesRoute
   KitchenRoute: typeof KitchenRoute
+  LoginRoute: typeof LoginRoute
   LoyaltyRoute: typeof LoyaltyRoute
   MaintenanceRoute: typeof MaintenanceRoute
   MenuRoute: typeof MenuRoute
@@ -537,6 +550,13 @@ declare module '@tanstack/react-router' {
       path: '/kitchen'
       fullPath: '/kitchen'
       preLoaderRoute: typeof KitchenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/loyalty': {
@@ -689,6 +709,7 @@ const rootRouteChildren: RootRouteChildren = {
   InventoryRoute: InventoryRoute,
   InvoicesRoute: InvoicesRoute,
   KitchenRoute: KitchenRoute,
+  LoginRoute: LoginRoute,
   LoyaltyRoute: LoyaltyRoute,
   MaintenanceRoute: MaintenanceRoute,
   MenuRoute: MenuRoute,

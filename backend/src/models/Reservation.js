@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const generateRef = require("../utils/generateRef");
 
 const reservationSchema = new mongoose.Schema(
   {
@@ -36,9 +37,9 @@ reservationSchema.pre("validate", function validateDates(next) {
   }
 });
 
-reservationSchema.pre("save", async function generateRef(next) {
+reservationSchema.pre("save", function setRef(next) {
   if (!this.ref) {
-    this.ref = `RES-${Date.now().toString(36).toUpperCase()}`;
+    this.ref = generateRef("RES");
   }
   next();
 });

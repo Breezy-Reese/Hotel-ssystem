@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const generateRef = require("../utils/generateRef");
 
 const orderItemSchema = new mongoose.Schema(
   {
@@ -38,7 +39,7 @@ orderSchema.virtual("total").get(function total() {
 });
 
 orderSchema.pre("save", function generateOrderNumber(next) {
-  if (!this.orderNumber) this.orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
+  if (!this.orderNumber) this.orderNumber = generateRef("ORD");
   next();
 });
 

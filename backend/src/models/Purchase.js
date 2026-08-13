@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const generateRef = require("../utils/generateRef");
 
 const purchaseItemSchema = new mongoose.Schema(
   {
@@ -33,7 +34,7 @@ purchaseSchema.virtual("totalCost").get(function totalCost() {
 });
 
 purchaseSchema.pre("save", function generatePO(next) {
-  if (!this.poNumber) this.poNumber = `PO-${Date.now().toString(36).toUpperCase()}`;
+  if (!this.poNumber) this.poNumber = generateRef("PO");
   next();
 });
 

@@ -17,10 +17,12 @@ export function PageHeader({
   title,
   description,
   action,
+  onAction,
 }: {
   title: string;
   description: string;
   action?: string | undefined;
+  onAction?: (() => void) | undefined;
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
@@ -29,7 +31,7 @@ export function PageHeader({
         <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
       </div>
       {action && (
-        <Button>
+        <Button onClick={onAction}>
           <Plus className="size-4" />
           {action}
         </Button>
@@ -38,23 +40,46 @@ export function PageHeader({
   );
 }
 
-export function StatGrid({ stats }: { stats: string[] }) {
+export function StatGrid({
+  stats,
+  values,
+  hint,
+}: {
+  stats: string[];
+  /** Maps a stat label to a live value once the backend is wired up. */
+  values?: Record<string, string | number> | undefined;
+  hint?: string | undefined;
+}) {
   if (!stats.length) return null;
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {stats.map((label) => (
-        <Card key={label} className="shadow-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              {label}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-3xl font-semibold text-muted-foreground/40">—</p>
-            <p className="mt-1 text-xs text-muted-foreground">Awaiting data source</p>
-          </CardContent>
-        </Card>
-      ))}
+      {stats.map((label) => {
+        const value = values?.[label];
+        const hasValue = value !== undefined;
+        return (
+          <Card key={label} className="shadow-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                {label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p
+                className={
+                  hasValue
+                    ? "font-display text-3xl font-semibold text-foreground"
+                    : "font-display text-3xl font-semibold text-muted-foreground/40"
+                }
+              >
+                {hasValue ? value : "—"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {hasValue ? (hint ?? "") : "Awaiting data source"}
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -128,29 +153,36 @@ export function ModulePage({
   title,
   description,
   action,
+  onAction,
   stats = [],
+  statValues,
   columns,
   emptyTitle = "No records yet",
   emptyHint = "Connect your backend and this table will populate automatically.",
   capabilities = [],
   children,
+  table,
 }: {
   title: string;
   description: string;
   action?: string | undefined;
+  onAction?: (() => void) | undefined;
   stats?: string[];
+  statValues?: Record<string, string | number> | undefined;
   columns: string[];
   emptyTitle?: string;
   emptyHint?: string;
   capabilities?: string[];
   children?: ReactNode;
+  /** Pass a <LiveDataTable /> (or similar) to replace the placeholder table. */
+  table?: ReactNode | undefined;
 }) {
   return (
     <div className="space-y-6">
-      <PageHeader title={title} description={description} action={action} />
-      <StatGrid stats={stats} />
+      <PageHeader title={title} description={description} action={action} onAction={onAction} />
+      <StatGrid stats={stats} values={statValues} />
       {children}
-      <DataTableShell columns={columns} emptyTitle={emptyTitle} emptyHint={emptyHint} />
+      {table ?? <DataTableShell columns={columns} emptyTitle={emptyTitle} emptyHint={emptyHint} />}
       {capabilities.length > 0 && (
         <FeatureChecklist title="Module capabilities" items={capabilities} />
       )}

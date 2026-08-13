@@ -4,11 +4,13 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { Bell, Search } from "lucide-react";
+import { Bell, LogOut, Search } from "lucide-react";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { AuthProvider, useAuth } from "../lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -92,7 +95,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Aurelia Suites — Hospitality Management System" },
       {
         property: "og:description",
-        content: "Run rooms, reservations, restaurant, finance, inventory and staff from one console.",
+        content:
+          "Run rooms, reservations, restaurant, finance, inventory and staff from one console.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -136,33 +140,70 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background">
-          <AppSidebar />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur">
-              <SidebarTrigger />
-              <div className="relative hidden w-full max-w-sm items-center sm:flex">
-                <Search className="absolute left-2.5 size-4 text-muted-foreground" />
-                <Input placeholder="Search rooms, guests, orders…" className="h-9 pl-8" />
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                <Button variant="ghost" size="icon" aria-label="Notifications">
-                  <Bell className="size-4" />
-                </Button>
-                <span className="bg-brass flex size-8 items-center justify-center rounded-full text-xs font-semibold text-accent-foreground">
-                  A
-                </span>
-              </div>
-            </header>
-            <main className="flex-1 p-4 sm:p-6 lg:p-8">
-              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-              <Outlet />
-            </main>
-          </div>
-        </div>
-      </SidebarProvider>
+      <AuthProvider>
+        <AppShell />
+      </AuthProvider>
       <Toaster />
     </QueryClientProvider>
+  );
+}
+
+// Gates every route except /login behind authentication, and renders the
+// login page without the sidebar/header chrome.
+function AppShell() {
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const isLoginRoute = pathname === "/login";
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isAuthenticated && !isLoginRoute) {
+      navigate({ to: "/login" });
+    }
+    if (isAuthenticated && isLoginRoute) {
+      navigate({ to: "/" });
+    }
+  }, [isLoading, isAuthenticated, isLoginRoute, navigate]);
+
+  if (isLoading) return null;
+
+  if (isLoginRoute || !isAuthenticated) {
+    return <Outlet />;
+  }
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur">
+            <SidebarTrigger />
+            <div className="relative hidden w-full max-w-sm items-center sm:flex">
+              <Search className="absolute left-2.5 size-4 text-muted-foreground" />
+              <Input placeholder="Search rooms, guests, orders…" className="h-9 pl-8" />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="ghost" size="icon" aria-label="Notifications">
+                <Bell className="size-4" />
+              </Button>
+              <span
+                className="bg-brass flex size-8 items-center justify-center rounded-full text-xs font-semibold text-accent-foreground"
+                title={user?.name}
+              >
+                {user?.name?.[0]?.toUpperCase() ?? "A"}
+              </span>
+              <Button variant="ghost" size="icon" aria-label="Sign out" onClick={() => logout()}>
+                <LogOut className="size-4" />
+              </Button>
+            </div>
+          </header>
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }
