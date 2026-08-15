@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const generateRef = require("../utils/generateRef");
 
 const paymentSchema = new mongoose.Schema(
   {
@@ -20,7 +21,7 @@ const paymentSchema = new mongoose.Schema(
 );
 
 paymentSchema.pre("save", function generateTxnId(next) {
-  if (!this.transactionId) this.transactionId = `TXN-${Date.now().toString(36).toUpperCase()}`;
+  if (!this.transactionId) this.transactionId = generateRef("TXN");
   next();
 });
 

@@ -20,6 +20,15 @@ const Housekeeping = require("../models/Housekeeping");
 const Maintenance = require("../models/Maintenance");
 const Invoice = require("../models/Invoice");
 const Expense = require("../models/Expense");
+const Purchase = require("../models/Purchase");
+const ServiceBooking = require("../models/ServiceBooking");
+const Sale = require("../models/Sale");
+const Payment = require("../models/Payment");
+const Attendance = require("../models/Attendance");
+const Review = require("../models/Review");
+const Notification = require("../models/Notification");
+const LoyaltyAccount = require("../models/LoyaltyAccount");
+const Document = require("../models/Document");
 
 function daysFromNow(n) {
   const d = new Date();
@@ -82,6 +91,12 @@ async function upsertMany(Model, items, findKeys) {
       { name: "Peter Kamau", department: "Maintenance", role: "Technician", branch: branch._id, shift: "Morning", email: "peter@aureliasuites.com" },
       { name: "Lucy Njeri", department: "Restaurant", role: "Waiter", branch: branch._id, shift: "Afternoon", email: "lucy@aureliasuites.com" },
       { name: "Samuel Mwangi", department: "Management", role: "Duty Manager", branch: branch._id, shift: "Morning", email: "samuel@aureliasuites.com" },
+      { name: "Esther Nyambura", department: "Front Desk", role: "Night Auditor", branch: branch._id, shift: "Night", email: "esther@aureliasuites.com" },
+      { name: "Joseph Kiplagat", department: "Kitchen", role: "Sous Chef", branch: branch._id, shift: "Afternoon", email: "joseph@aureliasuites.com" },
+      { name: "Faith Chebet", department: "Housekeeping", role: "Housekeeping Supervisor", branch: branch._id, shift: "Morning", email: "faith@aureliasuites.com" },
+      { name: "Dennis Mwakio", department: "Security", role: "Security Officer", branch: branch._id, shift: "Night", email: "dennis@aureliasuites.com" },
+      { name: "Winnie Auma", department: "Accounting", role: "Accountant", branch: branch._id, shift: "Morning", email: "winnie@aureliasuites.com" },
+      { name: "Collins Barasa", department: "Inventory", role: "Store Keeper", branch: branch._id, shift: "Morning", email: "collins@aureliasuites.com" },
     ],
     ["email"],
   );
@@ -97,6 +112,12 @@ async function upsertMany(Model, items, findKeys) {
     { roomNumber: "302", type: "Deluxe", capacity: 3, rate: 150, amenities: ["WiFi", "TV", "Minibar", "Balcony"], status: "Available" },
     { roomNumber: "401", type: "Executive", capacity: 2, rate: 210, amenities: ["WiFi", "TV", "Minibar", "Lounge access"], status: "Available" },
     { roomNumber: "501", type: "Suite", capacity: 4, rate: 350, amenities: ["WiFi", "TV", "Minibar", "Jacuzzi", "Lounge access"], status: "Maintenance" },
+    { roomNumber: "103", type: "Single", capacity: 1, rate: 60, amenities: ["WiFi", "TV"], status: "Available" },
+    { roomNumber: "203", type: "Double", capacity: 2, rate: 95, amenities: ["WiFi", "TV", "Minibar"], status: "Reserved" },
+    { roomNumber: "204", type: "Double", capacity: 2, rate: 95, amenities: ["WiFi", "TV", "Minibar"], status: "Occupied" },
+    { roomNumber: "303", type: "Deluxe", capacity: 2, rate: 140, amenities: ["WiFi", "TV", "Minibar", "Balcony"], status: "Available" },
+    { roomNumber: "402", type: "Executive", capacity: 3, rate: 220, amenities: ["WiFi", "TV", "Minibar", "Lounge access"], status: "Cleaning" },
+    { roomNumber: "502", type: "Suite", capacity: 4, rate: 380, amenities: ["WiFi", "TV", "Minibar", "Jacuzzi", "Lounge access", "Private balcony"], status: "Available" },
   ].map((r) => ({ ...r, branch: branch._id }));
   const rooms = await upsertMany(Room, roomDefs, ["branch", "roomNumber"]);
   const allRooms = await Room.find({ branch: branch._id });
@@ -109,6 +130,11 @@ async function upsertMany(Model, items, findKeys) {
     { name: "David Kiprotich", phone: "+254700555666", email: "david.k@example.com", vip: false, stays: 2 },
     { name: "Fatuma Ali", phone: "+254700777888", email: "fatuma.ali@example.com", vip: true, stays: 8 },
     { name: "Brian Mutiso", phone: "+254700999000", email: "brian.m@example.com", vip: false, stays: 1 },
+    { name: "Susan Wambui", phone: "+254701111333", email: "susan.w@example.com", vip: false, stays: 3 },
+    { name: "James Odhiambo", phone: "+254701222444", email: "james.o@example.com", vip: true, stays: 6 },
+    { name: "Aisha Mohamed", phone: "+254701333555", email: "aisha.m@example.com", vip: false, stays: 2 },
+    { name: "Nicholas Ruto", phone: "+254701444666", email: "nicholas.r@example.com", vip: false, stays: 1 },
+    { name: "Diana Cherop", phone: "+254701555777", email: "diana.c@example.com", vip: true, stays: 4 },
   ];
   const guests = await upsertMany(Guest, guestDefs, ["email"]);
   const allGuests = await Guest.find();
@@ -138,6 +164,12 @@ async function upsertMany(Model, items, findKeys) {
     { name: "Chocolate Cake", category: "Desserts", price: 5.0 },
     { name: "Fresh Juice", category: "Beverages", price: 3.5 },
     { name: "Espresso", category: "Beverages", price: 2.5 },
+    { name: "Fish Fillet", category: "Main Course", price: 14.0 },
+    { name: "Vegetable Stir Fry", category: "Main Course", price: 8.5 },
+    { name: "Onion Soup", category: "Starters", price: 5.0 },
+    { name: "Spring Rolls", category: "Starters", price: 4.5 },
+    { name: "Cheesecake", category: "Desserts", price: 5.5 },
+    { name: "Iced Tea", category: "Beverages", price: 3.0 },
   ].map((m) => ({ ...m, branch: branch._id }));
   const menuItems = await upsertMany(MenuItem, menuDefs, ["branch", "name"]);
   const allMenuItems = await MenuItem.find({ branch: branch._id });
@@ -149,6 +181,8 @@ async function upsertMany(Model, items, findKeys) {
     { tableNumber: "T2", capacity: 4, section: "Main Hall", status: "Occupied" },
     { tableNumber: "T3", capacity: 4, section: "Terrace", status: "Available" },
     { tableNumber: "T4", capacity: 6, section: "Terrace", status: "Reserved" },
+    { tableNumber: "T5", capacity: 2, section: "Main Hall", status: "Available" },
+    { tableNumber: "T6", capacity: 8, section: "Private Room", status: "Available" },
   ].map((t) => ({ ...t, branch: branch._id }));
   const tables = await upsertMany(RestaurantTable, tableDefs, ["branch", "tableNumber"]);
   const allTables = await RestaurantTable.find({ branch: branch._id });
@@ -205,6 +239,10 @@ async function upsertMany(Model, items, findKeys) {
     { name: "Bath towels", category: "Housekeeping", quantity: 120, unit: "pcs", reorderLevel: 30, costPerUnit: 4.0 },
     { name: "Bed sheets", category: "Housekeeping", quantity: 45, unit: "pcs", reorderLevel: 25, costPerUnit: 8.0 },
     { name: "Coffee beans", category: "Beverages", quantity: 8, unit: "kg", reorderLevel: 10, costPerUnit: 9.0 },
+    { name: "Cooking oil", category: "Dry goods", quantity: 25, unit: "l", reorderLevel: 15, costPerUnit: 2.3 },
+    { name: "Toilet paper", category: "Housekeeping", quantity: 200, unit: "pcs", reorderLevel: 50, costPerUnit: 0.5 },
+    { name: "Onions", category: "Produce", quantity: 5, unit: "kg", reorderLevel: 15, costPerUnit: 0.6 },
+    { name: "Sugar", category: "Dry goods", quantity: 60, unit: "kg", reorderLevel: 20, costPerUnit: 1.0 },
   ].map((i) => ({ ...i, branch: branch._id }));
   const inventoryItems = await upsertMany(InventoryItem, inventoryDefs, ["branch", "name"]);
   console.log(`Inventory items: ${inventoryItems.length} created`);
@@ -214,6 +252,8 @@ async function upsertMany(Model, items, findKeys) {
     { name: "Nairobi Fresh Produce Ltd", contactPhone: "+254711000111", contactEmail: "sales@nairobifresh.co.ke", productsSupplied: ["Tomatoes", "Vegetables", "Fruits"] },
     { name: "Coast Linen Supplies", contactPhone: "+254711222333", contactEmail: "orders@coastlinen.co.ke", productsSupplied: ["Bath towels", "Bed sheets"] },
     { name: "Highland Coffee Roasters", contactPhone: "+254711444555", contactEmail: "info@highlandcoffee.co.ke", productsSupplied: ["Coffee beans"] },
+    { name: "Rift Valley Grain Millers", contactPhone: "+254711666777", contactEmail: "sales@riftvalleygrain.co.ke", productsSupplied: ["Rice", "Sugar", "Cooking oil"] },
+    { name: "CleanCo Hygiene Supplies", contactPhone: "+254711888999", contactEmail: "orders@cleanco.co.ke", productsSupplied: ["Toilet paper", "Cleaning supplies"] },
   ];
   const suppliers = await upsertMany(Supplier, supplierDefs, ["contactEmail"]);
   console.log(`Suppliers: ${suppliers.length} created`);
@@ -224,6 +264,10 @@ async function upsertMany(Model, items, findKeys) {
     { name: "Full Body Massage", category: "Spa", price: 40, duration: 45 },
     { name: "Laundry Service", category: "Laundry", price: 8, duration: 120 },
     { name: "Conference Room (half day)", category: "Events", price: 100, duration: 240 },
+    { name: "Airport Drop-off", category: "Transport", price: 25, duration: 60 },
+    { name: "Facial Treatment", category: "Spa", price: 30, duration: 40 },
+    { name: "Gym Day Pass", category: "Fitness", price: 10, duration: 0 },
+    { name: "City Tour", category: "Transport", price: 50, duration: 180 },
   ].map((s) => ({ ...s, branch: branch._id }));
   const services = await upsertMany(Service, serviceDefs, ["branch", "name"]);
   console.log(`Services: ${services.length} created`);
@@ -235,6 +279,10 @@ async function upsertMany(Model, items, findKeys) {
     { title: "Fix AC in Room 301", assignedTo: allEmployees[3]._id, department: "Maintenance", deadline: daysFromNow(2), progress: 0, status: "Open" },
     { title: "Restock bar inventory", assignedTo: allEmployees[4]._id, department: "Restaurant", deadline: daysFromNow(-1), progress: 60, status: "Overdue" },
     { title: "Prepare weekly menu specials", assignedTo: allEmployees[2]._id, department: "Kitchen", deadline: daysFromNow(3), progress: 100, status: "Completed" },
+    { title: "Night audit reconciliation", assignedTo: allEmployees[6]?._id, department: "Front Desk", deadline: daysFromNow(0), progress: 40, status: "InProgress" },
+    { title: "Security patrol log review", assignedTo: allEmployees[9]?._id, department: "Security", deadline: daysFromNow(1), progress: 0, status: "Open" },
+    { title: "Monthly supplier invoice reconciliation", assignedTo: allEmployees[10]?._id, department: "Accounting", deadline: daysFromNow(4), progress: 10, status: "Open" },
+    { title: "Stock count — dry goods store", assignedTo: allEmployees[11]?._id, department: "Inventory", deadline: daysFromNow(2), progress: 0, status: "Open" },
   ];
   const tasks = await upsertMany(Task, taskDefs, ["title"]);
   console.log(`Tasks: ${tasks.length} created`);
@@ -244,6 +292,8 @@ async function upsertMany(Model, items, findKeys) {
     { code: "SUMMER25", appliesTo: "Room", discountType: "Percent", discountValue: 25, startsAt: daysFromNow(-5), expiresAt: daysFromNow(10) },
     { code: "WELCOME10", appliesTo: "All", discountType: "Percent", discountValue: 10, startsAt: daysFromNow(-30), expiresAt: daysFromNow(60) },
     { code: "FIXED20", appliesTo: "Menu", discountType: "Fixed", discountValue: 20, startsAt: daysFromNow(1), expiresAt: daysFromNow(5) },
+    { code: "SPA15", appliesTo: "Service", discountType: "Percent", discountValue: 15, startsAt: daysFromNow(0), expiresAt: daysFromNow(20) },
+    { code: "EXPIRED5", appliesTo: "Room", discountType: "Fixed", discountValue: 5, startsAt: daysFromNow(-60), expiresAt: daysFromNow(-30) },
   ];
   const promotions = await upsertMany(Promotion, promoDefs, ["code"]);
   console.log(`Promotions: ${promotions.length} created`);
@@ -314,6 +364,206 @@ async function upsertMany(Model, items, findKeys) {
     console.log(`Expenses: ${expenses.length} created`);
   } else {
     console.log("Expenses already exist — skipping");
+  }
+
+  // --- Purchase orders ---
+  const allInventory = await InventoryItem.find({ branch: branch._id });
+  if ((await Purchase.countDocuments()) === 0 && allSuppliers.length && allInventory.length) {
+    const purchaseDefs = [
+      {
+        branch: branch._id,
+        supplier: allSuppliers[0]._id,
+        items: [
+          { item: allInventory[2]._id, name: allInventory[2].name, quantity: 40, cost: 0.8 },
+        ],
+        expectedDate: daysFromNow(2),
+        status: "Ordered",
+        createdBy: admin._id,
+      },
+      {
+        branch: branch._id,
+        supplier: allSuppliers[1]._id,
+        items: [
+          { item: allInventory[3]._id, name: allInventory[3].name, quantity: 50, cost: 4.0 },
+          { item: allInventory[4]._id, name: allInventory[4].name, quantity: 30, cost: 8.0 },
+        ],
+        expectedDate: daysFromNow(-1),
+        status: "AwaitingDelivery",
+        createdBy: admin._id,
+      },
+      {
+        branch: branch._id,
+        supplier: allSuppliers[2]._id,
+        items: [{ item: allInventory[5]._id, name: allInventory[5].name, quantity: 20, cost: 9.0 }],
+        expectedDate: daysFromNow(-5),
+        status: "Received",
+        receivedDate: daysFromNow(-4),
+        createdBy: admin._id,
+      },
+    ];
+    const purchases = await Purchase.create(purchaseDefs);
+    console.log(`Purchase orders: ${purchases.length} created`);
+  } else {
+    console.log("Purchase orders already exist — skipping");
+  }
+
+  // --- Service bookings ---
+  const allServices = await Service.find({ branch: branch._id });
+  if ((await ServiceBooking.countDocuments()) === 0 && allGuests.length && allServices.length) {
+    const bookingDefs = [
+      { guest: allGuests[0]._id, service: allServices[1]._id, dateTime: daysFromNow(0), charge: allServices[1].price, status: "Scheduled" },
+      { guest: allGuests[3]._id, service: allServices[0]._id, dateTime: daysFromNow(-2), charge: allServices[0].price, status: "Completed" },
+      { guest: allGuests[1]._id, service: allServices[2]._id, dateTime: daysFromNow(1), charge: allServices[2].price, status: "Requested" },
+    ];
+    const bookings = await ServiceBooking.create(bookingDefs);
+    console.log(`Service bookings: ${bookings.length} created`);
+  } else {
+    console.log("Service bookings already exist — skipping");
+  }
+
+  // --- POS sales ---
+  if ((await Sale.countDocuments()) === 0 && allMenuItems.length) {
+    const saleDefs = [
+      {
+        branch: branch._id,
+        cashier: admin._id,
+        items: [
+          { menuItem: allMenuItems[1]._id, name: allMenuItems[1].name, quantity: 1, price: allMenuItems[1].price },
+          { menuItem: allMenuItems[5]._id, name: allMenuItems[5].name, quantity: 1, price: allMenuItems[5].price },
+        ],
+        discount: 0,
+        paymentMethod: "Cash",
+      },
+      {
+        branch: branch._id,
+        cashier: admin._id,
+        items: [{ menuItem: allMenuItems[3]._id, name: allMenuItems[3].name, quantity: 2, price: allMenuItems[3].price }],
+        discount: 2,
+        paymentMethod: "Card",
+      },
+      {
+        branch: branch._id,
+        cashier: admin._id,
+        items: [{ menuItem: allMenuItems[4]._id, name: allMenuItems[4].name, quantity: 3, price: allMenuItems[4].price }],
+        discount: 0,
+        paymentMethod: "Mobile",
+      },
+    ];
+    const sales = await Sale.create(saleDefs);
+    console.log(`POS sales: ${sales.length} created`);
+  } else {
+    console.log("POS sales already exist — skipping");
+  }
+
+  // --- Payments ---
+  const allInvoices = await Invoice.find({ branch: branch._id });
+  if ((await Payment.countDocuments()) === 0 && allInvoices.length) {
+    const paidInvoice = allInvoices.find((i) => i.status === "Paid");
+    const paymentDefs = [
+      paidInvoice && {
+        branch: branch._id,
+        source: "Invoice",
+        sourceId: paidInvoice._id,
+        method: "Card",
+        amount: 464,
+        status: "Completed",
+        recordedBy: admin._id,
+      },
+      {
+        branch: branch._id,
+        source: "Service",
+        sourceId: allServices[0]._id,
+        method: "Cash",
+        amount: allServices[0].price,
+        status: "Completed",
+        recordedBy: admin._id,
+      },
+      {
+        branch: branch._id,
+        source: "Reservation",
+        sourceId: (await Reservation.findOne({ status: "CheckedIn" }))?._id ?? allGuests[0]._id,
+        method: "Mobile",
+        amount: 150,
+        status: "Pending",
+        recordedBy: admin._id,
+      },
+    ].filter(Boolean);
+    const payments = await Payment.create(paymentDefs);
+    console.log(`Payments: ${payments.length} created`);
+  } else {
+    console.log("Payments already exist — skipping");
+  }
+
+  // --- Attendance ---
+  if ((await Attendance.countDocuments()) === 0) {
+    const now = new Date();
+    const morning = (h, m) => new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+    const attendanceDefs = [
+      { employee: allEmployees[0]._id, date: daysFromNow(0), clockIn: morning(8, 2), clockOut: morning(17, 5), flag: "OnTime" },
+      { employee: allEmployees[1]._id, date: daysFromNow(0), clockIn: morning(9, 20), flag: "Late" },
+      { employee: allEmployees[2]._id, date: daysFromNow(0), clockIn: morning(7, 55), clockOut: morning(15, 30), flag: "EarlyLeave" },
+      { employee: allEmployees[3]._id, date: daysFromNow(-1), flag: "Absent" },
+      { employee: allEmployees[4]._id, date: daysFromNow(-1), clockIn: morning(8, 0), clockOut: morning(16, 0), flag: "OnTime" },
+    ];
+    const attendance = await Attendance.create(attendanceDefs);
+    console.log(`Attendance records: ${attendance.length} created`);
+  } else {
+    console.log("Attendance records already exist — skipping");
+  }
+
+  // --- Reviews ---
+  if ((await Review.countDocuments()) === 0 && allGuests.length && allRooms.length) {
+    const reviewDefs = [
+      { guest: allGuests[0]._id, targetType: "Room", targetId: allRooms[2]._id, targetModel: "Room", rating: 5, comment: "Spotless room and great view.", reviewed: true },
+      { guest: allGuests[3]._id, targetType: "Meal", targetId: allMenuItems[0]._id, targetModel: "MenuItem", rating: 4, comment: "Tasty but a bit slow to arrive.", reviewed: false },
+      { guest: allGuests[1]._id, targetType: "Service", targetId: allServices[1]._id, targetModel: "Service", rating: 5, comment: "Incredible massage, will book again.", reviewed: false },
+      { guest: allGuests[2]._id, targetType: "Room", targetId: allRooms[0]._id, targetModel: "Room", rating: 3, comment: "Comfortable but a bit noisy at night.", reviewed: true },
+    ];
+    const reviews = await Review.create(reviewDefs);
+    console.log(`Reviews: ${reviews.length} created`);
+  } else {
+    console.log("Reviews already exist — skipping");
+  }
+
+  // --- Notifications ---
+  if ((await Notification.countDocuments()) === 0) {
+    const notificationDefs = [
+      { type: "Announcement", message: "Staff meeting this Friday at 9am in the main hall.", channel: "InApp", sentAt: daysFromNow(-1), status: "Sent", createdBy: admin._id },
+      { type: "Alert", message: "Tomatoes are out of stock — reorder needed.", channel: "Email", sentAt: daysFromNow(0), status: "Sent", createdBy: admin._id },
+      { type: "Reminder", message: "Room 501 maintenance ticket is still open.", channel: "InApp", status: "Pending", createdBy: admin._id },
+    ];
+    const notifications = await Notification.create(notificationDefs);
+    console.log(`Notifications: ${notifications.length} created`);
+  } else {
+    console.log("Notifications already exist — skipping");
+  }
+
+  // --- Loyalty accounts ---
+  if ((await LoyaltyAccount.countDocuments()) === 0 && allGuests.length) {
+    const loyaltyDefs = [
+      { guest: allGuests[0]._id, tier: "Gold", points: 5400, lifetimeSpend: 6200, lastActivity: daysFromNow(-1), history: [{ type: "Earn", points: 285, reason: "Room stay" }] },
+      { guest: allGuests[3]._id, tier: "Platinum", points: 12300, lifetimeSpend: 15800, lastActivity: daysFromNow(-2), history: [{ type: "Redeem", points: -500, reason: "Free spa session" }] },
+      { guest: allGuests[1]._id, tier: "Bronze", points: 150, lifetimeSpend: 210, lastActivity: daysFromNow(0), history: [{ type: "Earn", points: 150, reason: "First stay" }] },
+      { guest: allGuests[2]._id, tier: "Silver", points: 1800, lifetimeSpend: 2100, lastActivity: daysFromNow(-5), history: [] },
+    ];
+    const loyaltyAccounts = await LoyaltyAccount.create(loyaltyDefs);
+    console.log(`Loyalty accounts: ${loyaltyAccounts.length} created`);
+  } else {
+    console.log("Loyalty accounts already exist — skipping");
+  }
+
+  // --- Documents ---
+  if ((await Document.countDocuments()) === 0) {
+    const documentDefs = [
+      { name: "John Doe - Passport Copy", type: "GuestDoc", ownerModel: "Guest", owner: allGuests[0]._id, fileUrl: "https://example.com/docs/passport-john-doe.pdf", size: 245000, access: "Restricted", uploadedBy: admin._id },
+      { name: "Grace Wanjiru - Employment Contract", type: "StaffDoc", ownerModel: "Employee", owner: allEmployees[0]._id, fileUrl: "https://example.com/docs/contract-grace.pdf", size: 180000, access: "Private", uploadedBy: admin._id },
+      { name: "Fire Safety Policy", type: "Policy", fileUrl: "https://example.com/docs/fire-safety-policy.pdf", size: 95000, access: "Public", uploadedBy: admin._id },
+      { name: "Guest Refund Policy", type: "Policy", fileUrl: "https://example.com/docs/refund-policy.pdf", size: 62000, access: "Public", uploadedBy: admin._id },
+    ];
+    const documents = await Document.create(documentDefs);
+    console.log(`Documents: ${documents.length} created`);
+  } else {
+    console.log("Documents already exist — skipping");
   }
 
   await mongoose.disconnect();
