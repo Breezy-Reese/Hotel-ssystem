@@ -32,6 +32,17 @@ export function getStoredUser<T = Record<string, unknown>>(): T | null {
   return raw ? (JSON.parse(raw) as T) : null;
 }
 
+// Fired whenever a request comes back 401, so any part of the app (namely
+// AuthProvider) can react and actually log the user out — clearing
+// localStorage alone doesn't update React state or trigger the redirect.
+const UNAUTHORIZED_EVENT = "auth:unauthorized";
+
+export function onUnauthorized(handler: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(UNAUTHORIZED_EVENT, handler);
+  return () => window.removeEventListener(UNAUTHORIZED_EVENT, handler);
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
 
@@ -50,6 +61,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
       clearSession();
+      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
     }
     throw new ApiError(body?.message ?? res.statusText, res.status);
   }
@@ -62,10 +74,10 @@ function withBody(method: string, data?: unknown): RequestInit {
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, data?: unknown) => request<T>(path, withBody("POST", data)),
-  patch: <T>(path: string, data?: unknown) => request<T>(path, withBody("PATCH", data)),
-  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  get: <T,>(path: string) => request<T>(path),
+  post: <T,>(path: string, data?: unknown) => request<T>(path, withBody("POST", data)),
+  patch: <T,>(path: string, data?: unknown) => request<T>(path, withBody("PATCH", data)),
+  delete: <T,>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 
 // Envelope shapes returned by the backend (see handlerFactory.js)

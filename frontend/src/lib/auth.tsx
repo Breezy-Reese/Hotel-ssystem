@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-import { api, clearSession, getStoredUser, getToken, setSession } from "./api";
+import { api, clearSession, getStoredUser, getToken, onUnauthorized, setSession } from "./api";
 
 export interface AuthUser {
   _id: string;
@@ -37,6 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token && storedUser) setUser(storedUser);
     setIsLoading(false);
   }, []);
+
+  // Any API call that comes back 401 (expired/invalid token, wrong JWT_SECRET,
+  // etc.) fires this — without it, the app keeps thinking it's logged in and
+  // silently retries failing requests forever instead of returning to /login.
+  useEffect(() => onUnauthorized(() => setUser(null)), []);
 
   async function login(email: string, password: string) {
     const res = await api.post<LoginResponse>("/auth/login", { email, password });
