@@ -1,1 +1,0 @@
-import{n as e}from"./api-BYA70ed2.js";import{i as t}from"./live-data-table-WoTWT1Zf.js";function n(){return t({queryKey:[`reports`,`dashboard`],queryFn:()=>e.get(`/reports/dashboard`),refetchInterval:6e4})}export{n as t};

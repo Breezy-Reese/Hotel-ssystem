@@ -8,15 +8,15 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+
   css: {
     transformer: "postcss",
   },
+
   plugins: [
     tailwindcss(),
     tanstackStart(),
+    nitro(),
     viteReact(),
-    nitro({
-      preset: "vercel",
-    }),
   ],
 });
