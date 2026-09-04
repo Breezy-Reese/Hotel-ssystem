@@ -1,7 +1,12 @@
-const API_URL = import.meta.env.PROD
-  ? import.meta.env.VITE_PRODUCTION_API_URL
-  : import.meta.env.VITE_LOCAL_API_URL;
+const API_URL =
+  import.meta.env["VITE_API_URL"] ??
+  (typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "https://hotel-ssystem.onrender.com/api/v1"
+    : "http://localhost:5000/api/v1");
 
+if (!API_URL) {
+  throw new Error("API URL is not configured");
+}
 const TOKEN_KEY = "aurelia_token";
 const USER_KEY = "aurelia_user";
 
