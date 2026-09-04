@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ordersApi } from "@/lib/resources";
 import type { Order, OrderStatus, Room } from "@/lib/types";
 import { ApiError } from "@/lib/api";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/orders")({
   head: () => ({
@@ -77,7 +78,7 @@ function OrdersPage() {
     { header: "Type", render: (o) => o.type },
     { header: "Table / Room", render: (o) => tableOrRoom(o) },
     { header: "Items", render: (o) => o.items.length },
-    { header: "Total", render: (o) => (o.total !== undefined ? `$${o.total.toFixed(2)}` : "—") },
+    { header: "Total", render: (o) => (o.total !== undefined ? formatCurrency(o.total) : "—") },
     {
       header: "Status",
       render: (o) => <Badge variant={STATUS_VARIANT[o.status]}>{o.status}</Badge>,

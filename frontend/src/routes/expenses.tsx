@@ -7,6 +7,7 @@ import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { Badge } from "@/components/ui/badge";
 import { expensesApi } from "@/lib/resources";
 import type { Expense, ExpenseStatus, Supplier } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/expenses")({
   head: () => ({
@@ -38,7 +39,7 @@ const columns: LiveColumn<Expense>[] = [
   { header: "Category", render: (e) => e.category },
   { header: "Description", render: (e) => e.description || "—" },
   { header: "Supplier", render: (e) => supplierName(e.supplier) },
-  { header: "Amount", render: (e) => `$${e.amount.toFixed(2)}` },
+  { header: "Amount", render: (e) => formatCurrency(e.amount) },
   { header: "Status", render: (e) => <Badge variant={STATUS_VARIANT[e.status]}>{e.status}</Badge> },
 ];
 
@@ -54,7 +55,7 @@ function ExpensesPage() {
   });
 
   const stats = {
-    "Expenses this month": `$${thisMonth.reduce((sum, e) => sum + e.amount, 0).toFixed(2)}`,
+    "Expenses this month": formatCurrency(thisMonth.reduce((sum, e) => sum + e.amount, 0)),
     Categories: new Set(expenses.map((e) => e.category)).size,
     "Pending approvals": expenses.filter((e) => e.status === "Pending").length,
   };

@@ -7,6 +7,7 @@ import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { Badge } from "@/components/ui/badge";
 import { salesApi } from "@/lib/resources";
 import type { Sale } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/pos")({
   head: () => ({
@@ -32,8 +33,8 @@ const columns: LiveColumn<Sale>[] = [
   { header: "Receipt #", render: (s) => <span className="font-medium">{s.receiptNumber}</span> },
   { header: "Cashier", render: (s) => cashierName(s.cashier) },
   { header: "Items", render: (s) => `${s.items.length} item${s.items.length === 1 ? "" : "s"}` },
-  { header: "Discount", render: (s) => `$${s.discount.toFixed(2)}` },
-  { header: "Total", render: (s) => `$${saleTotal(s).toFixed(2)}` },
+  { header: "Discount", render: (s) => formatCurrency(s.discount) },
+  { header: "Total", render: (s) => formatCurrency(saleTotal(s)) },
   { header: "Payment", render: (s) => <Badge variant="secondary">{s.paymentMethod}</Badge> },
 ];
 
@@ -49,11 +50,11 @@ function PosPage() {
     (s) => new Date(s.createdAt).toDateString() === today,
   );
   const stats = {
-    "Sales today": `$${salesToday.reduce((sum, s) => sum + saleTotal(s), 0).toFixed(2)}`,
-    "Discounts given": `$${(data?.data ?? []).reduce((sum, s) => sum + s.discount, 0).toFixed(2)}`,
+    "Sales today": formatCurrency(salesToday.reduce((sum, s) => sum + saleTotal(s), 0)),
+    "Discounts given": formatCurrency((data?.data ?? []).reduce((sum, s) => sum + s.discount, 0)),
     "Average bill":
       (data?.data ?? []).length > 0
-        ? `$${((data?.data ?? []).reduce((sum, s) => sum + saleTotal(s), 0) / (data?.data ?? []).length).toFixed(2)}`
+        ? formatCurrency(((data?.data ?? []).reduce((sum, s) => sum + saleTotal(s), 0) / (data?.data ?? []).length))
         : "—",
   };
 

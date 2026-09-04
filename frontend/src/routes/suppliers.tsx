@@ -6,6 +6,7 @@ import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { Badge } from "@/components/ui/badge";
 import { suppliersApi } from "@/lib/resources";
 import type { Supplier } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/suppliers")({
   head: () => ({
@@ -24,7 +25,7 @@ const columns: LiveColumn<Supplier>[] = [
   { header: "Supplier", render: (s) => <span className="font-medium">{s.name}</span> },
   { header: "Contact", render: (s) => s.contactPhone || s.contactEmail || "—" },
   { header: "Products", render: (s) => s.productsSupplied?.join(", ") || "—" },
-  { header: "Balance", render: (s) => `$${s.balanceOwed.toFixed(2)}` },
+  { header: "Balance", render: (s) => formatCurrency(s.balanceOwed) },
   {
     header: "Status",
     render: (s) => (
@@ -40,7 +41,7 @@ function SuppliersPage() {
 
   const stats = {
     Suppliers: data?.total ?? "—",
-    "Amount owed": `$${suppliers.reduce((sum, s) => sum + s.balanceOwed, 0).toFixed(2)}`,
+    "Amount owed": formatCurrency(suppliers.reduce((sum, s) => sum + s.balanceOwed, 0)),
   };
 
   return (

@@ -7,6 +7,7 @@ import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { Badge } from "@/components/ui/badge";
 import { promotionsApi } from "@/lib/resources";
 import type { Promotion, PromotionStatus } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/promotions")({
   head: () => ({
@@ -35,7 +36,7 @@ const columns: LiveColumn<Promotion>[] = [
   {
     header: "Discount",
     render: (p) =>
-      p.discountType === "Percent" ? `${p.discountValue}%` : `$${p.discountValue.toFixed(2)}`,
+      p.discountType === "Percent" ? `${p.discountValue}%` : formatCurrency(p.discountValue),
   },
   { header: "Starts", render: (p) => format(new Date(p.startsAt), "MMM d, yyyy") },
   { header: "Expires", render: (p) => format(new Date(p.expiresAt), "MMM d, yyyy") },

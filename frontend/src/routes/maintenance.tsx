@@ -15,6 +15,7 @@ import type {
   Room,
 } from "@/lib/types";
 import { ApiError } from "@/lib/api";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/maintenance")({
   head: () => ({
@@ -98,7 +99,7 @@ function MaintenancePage() {
       render: (t) => <Badge variant={PRIORITY_VARIANT[t.priority]}>{t.priority}</Badge>,
     },
     { header: "Assigned to", render: (t) => employeeName(t.assignedTo) },
-    { header: "Cost", render: (t) => `$${t.cost.toFixed(2)}` },
+    { header: "Cost", render: (t) => formatCurrency(t.cost) },
     {
       header: "Status",
       render: (t) => <Badge variant={STATUS_VARIANT[t.status]}>{t.status}</Badge>,

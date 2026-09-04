@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { invoicesApi } from "@/lib/resources";
 import type { Guest, Invoice, InvoiceStatus } from "@/lib/types";
 import { ApiError } from "@/lib/api";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/invoices")({
   head: () => ({
@@ -74,8 +75,8 @@ function InvoicesPage() {
     { header: "Invoice #", render: (i) => <span className="font-medium">{i.invoiceNumber}</span> },
     { header: "Guest", render: (i) => guestName(i.guest) },
     { header: "Tax", render: (i) => `${i.tax}%` },
-    { header: "Discount", render: (i) => `$${i.discount.toFixed(2)}` },
-    { header: "Total", render: (i) => `$${invoiceTotal(i).toFixed(2)}` },
+    { header: "Discount", render: (i) => formatCurrency(i.discount) },
+    { header: "Total", render: (i) => formatCurrency(invoiceTotal(i)) },
     {
       header: "Status",
       render: (i) => <Badge variant={STATUS_VARIANT[i.status]}>{i.status}</Badge>,

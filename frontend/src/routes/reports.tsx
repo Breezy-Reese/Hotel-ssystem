@@ -5,6 +5,7 @@ import { ModulePage } from "@/components/module-page";
 import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { api } from "@/lib/api";
 import { useDashboardStats } from "@/lib/reports";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/reports")({
   head: () => ({
@@ -39,10 +40,10 @@ function useRevenueReport() {
 
 const columns: LiveColumn<RevenueRow & { _id: string }>[] = [
   { header: "Period", render: (r) => <span className="font-medium">{r.period}</span> },
-  { header: "Hotel revenue", render: (r) => `$${r.hotelRevenue.toFixed(2)}` },
-  { header: "Restaurant revenue", render: (r) => `$${r.restaurantRevenue.toFixed(2)}` },
-  { header: "Expenses", render: (r) => `$${r.expenses.toFixed(2)}` },
-  { header: "Profit", render: (r) => `$${r.profit.toFixed(2)}` },
+  { header: "Hotel revenue", render: (r) => formatCurrency(r.hotelRevenue) },
+  { header: "Restaurant revenue", render: (r) => formatCurrency(r.restaurantRevenue) },
+  { header: "Expenses", render: (r) => formatCurrency(r.expenses) },
+  { header: "Profit", render: (r) => formatCurrency(r.profit) },
 ];
 
 function ReportsPage() {
@@ -54,10 +55,10 @@ function ReportsPage() {
   const totals = revenueRes?.data.totals;
 
   const statValues = {
-    "Revenue today": stats ? `$${stats.billing.revenueToday.toFixed(2)}` : "—",
-    "Hotel revenue": totals ? `$${totals.hotelRevenue.toFixed(2)}` : "—",
-    "Restaurant revenue": totals ? `$${totals.restaurantRevenue.toFixed(2)}` : "—",
-    "Estimated profit": totals ? `$${totals.profit.toFixed(2)}` : "—",
+    "Revenue today": stats ? formatCurrency(stats.billing.revenueToday) : "—",
+    "Hotel revenue": totals ? formatCurrency(totals.hotelRevenue) : "—",
+    "Restaurant revenue": totals ? formatCurrency(totals.restaurantRevenue) : "—",
+    "Estimated profit": totals ? formatCurrency(totals.profit) : "—",
   };
 
   return (

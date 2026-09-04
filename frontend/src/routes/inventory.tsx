@@ -6,6 +6,7 @@ import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { Badge } from "@/components/ui/badge";
 import { inventoryApi } from "@/lib/resources";
 import type { InventoryItem, InventoryStatus } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/inventory")({
   head: () => ({
@@ -31,7 +32,7 @@ const columns: LiveColumn<InventoryItem>[] = [
   { header: "Category", render: (i) => i.category },
   { header: "Quantity", render: (i) => `${i.quantity} ${i.unit}` },
   { header: "Reorder level", render: (i) => `${i.reorderLevel} ${i.unit}` },
-  { header: "Stock value", render: (i) => `$${i.stockValue.toFixed(2)}` },
+  { header: "Stock value", render: (i) => formatCurrency(i.stockValue) },
   {
     header: "Status",
     render: (i) => <Badge variant={STATUS_VARIANT[i.status]}>{i.status}</Badge>,

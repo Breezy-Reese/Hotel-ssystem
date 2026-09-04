@@ -17,6 +17,7 @@ import { navGroups } from "@/config/navigation";
 import { useDashboardStats } from "@/lib/reports";
 import { reservationsApi } from "@/lib/resources";
 import type { Guest, Reservation, Room } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -89,7 +90,7 @@ function Dashboard() {
       label: "Revenue today",
       icon: Wallet,
       hint: "Hotel + restaurant",
-      value: stats ? `$${stats.billing.revenueToday.toFixed(2)}` : undefined,
+      value: stats ? formatCurrency(stats.billing.revenueToday) : undefined,
     },
   ];
 

@@ -25,6 +25,7 @@ import {
 import { branchesApi, roomsApi } from "@/lib/resources";
 import type { Room, RoomStatus, RoomType } from "@/lib/types";
 import { ApiError } from "@/lib/api";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/rooms")({
   head: () => ({
@@ -58,7 +59,7 @@ const columns: LiveColumn<Room>[] = [
   { header: "Room #", render: (r) => <span className="font-medium">{r.roomNumber}</span> },
   { header: "Type", render: (r) => r.type },
   { header: "Capacity", render: (r) => r.capacity },
-  { header: "Rate / night", render: (r) => `$${r.rate.toFixed(2)}` },
+  { header: "Rate / night", render: (r) => formatCurrency(r.rate) },
   { header: "Amenities", render: (r) => r.amenities?.join(", ") || "—" },
   {
     header: "Status",
@@ -205,7 +206,7 @@ function RoomsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="rate">Rate / night ($)</Label>
+                <Label htmlFor="rate">Rate / night (KSh)</Label>
                 <Input id="rate" name="rate" type="number" min={0} step="0.01" required />
               </div>
               <div className="space-y-1.5">

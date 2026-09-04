@@ -7,6 +7,7 @@ import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { Badge } from "@/components/ui/badge";
 import { paymentsApi } from "@/lib/resources";
 import type { Payment, PaymentStatus } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/payments")({
   head: () => ({
@@ -32,7 +33,7 @@ const columns: LiveColumn<Payment>[] = [
   { header: "Txn ID", render: (p) => <span className="font-medium">{p.transactionId}</span> },
   { header: "Source", render: (p) => p.source },
   { header: "Method", render: (p) => p.method },
-  { header: "Amount", render: (p) => `$${p.amount.toFixed(2)}` },
+  { header: "Amount", render: (p) => formatCurrency(p.amount) },
   { header: "Date", render: (p) => format(new Date(p.date), "MMM d, yyyy") },
   { header: "Status", render: (p) => <Badge variant={STATUS_VARIANT[p.status]}>{p.status}</Badge> },
 ];
@@ -44,10 +45,10 @@ function PaymentsPage() {
 
   const today = new Date().toDateString();
   const stats = {
-    "Collected today": `$${payments
+    "Collected today": formatCurrency(payments
       .filter((p) => p.status === "Completed" && new Date(p.date).toDateString() === today)
       .reduce((sum, p) => sum + p.amount, 0)
-      .toFixed(2)}`,
+      ),
     Pending: payments.filter((p) => p.status === "Pending").length,
     Refunded: payments.filter((p) => p.status === "Refunded").length,
     Failed: payments.filter((p) => p.status === "Failed").length,

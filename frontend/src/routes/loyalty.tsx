@@ -6,6 +6,7 @@ import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { Badge } from "@/components/ui/badge";
 import { loyaltyApi } from "@/lib/resources";
 import type { Guest, LoyaltyAccount, LoyaltyTier } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/loyalty")({
   head: () => ({
@@ -35,7 +36,7 @@ const columns: LiveColumn<LoyaltyAccount>[] = [
   { header: "Member", render: (a) => guestName(a.guest) },
   { header: "Tier", render: (a) => <Badge variant={TIER_VARIANT[a.tier]}>{a.tier}</Badge> },
   { header: "Points", render: (a) => a.points.toLocaleString() },
-  { header: "Lifetime spend", render: (a) => `$${a.lifetimeSpend.toFixed(2)}` },
+  { header: "Lifetime spend", render: (a) => formatCurrency(a.lifetimeSpend) },
   {
     header: "Last activity",
     render: (a) => (a.lastActivity ? new Date(a.lastActivity).toLocaleDateString() : "—"),

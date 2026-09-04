@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { menuItemsApi } from "@/lib/resources";
 import type { MenuItem } from "@/lib/types";
 import { ApiError } from "@/lib/api";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/menu")({
   head: () => ({
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/menu")({
 const columns: LiveColumn<MenuItem>[] = [
   { header: "Item", render: (m) => <span className="font-medium">{m.name}</span> },
   { header: "Category", render: (m) => m.category },
-  { header: "Price", render: (m) => `$${m.price.toFixed(2)}` },
+  { header: "Price", render: (m) => formatCurrency(m.price) },
   {
     header: "Availability",
     render: (m) => (
@@ -123,7 +124,7 @@ function MenuPage() {
                 <Input id="category" name="category" placeholder="Starters" required />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="price">Price ($)</Label>
+                <Label htmlFor="price">Price (KSh)</Label>
                 <Input id="price" name="price" type="number" min={0} step="0.01" required />
               </div>
             </div>

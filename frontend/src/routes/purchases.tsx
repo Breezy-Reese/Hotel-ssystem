@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { purchasesApi } from "@/lib/resources";
 import type { Purchase, PurchaseStatus, Supplier } from "@/lib/types";
 import { ApiError } from "@/lib/api";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/purchases")({
   head: () => ({
@@ -47,7 +48,7 @@ function PurchasesPage() {
     "Open POs": purchases.filter((p) => p.status === "Ordered" || p.status === "Draft").length,
     "Awaiting delivery": purchases.filter((p) => p.status === "AwaitingDelivery").length,
     Received: purchases.filter((p) => p.status === "Received").length,
-    "Purchase cost": `$${purchases.reduce((sum, p) => sum + (p.totalCost ?? 0), 0).toFixed(2)}`,
+    "Purchase cost": formatCurrency(purchases.reduce((sum, p) => sum + (p.totalCost ?? 0), 0)),
   };
 
   async function handleReceive(id: string) {
@@ -67,7 +68,7 @@ function PurchasesPage() {
       header: "Expected",
       render: (p) => (p.expectedDate ? format(new Date(p.expectedDate), "MMM d, yyyy") : "—"),
     },
-    { header: "Cost", render: (p) => `$${(p.totalCost ?? 0).toFixed(2)}` },
+    { header: "Cost", render: (p) => formatCurrency((p.totalCost ?? 0)) },
     {
       header: "Status",
       render: (p) => <Badge variant={STATUS_VARIANT[p.status]}>{p.status}</Badge>,

@@ -7,6 +7,7 @@ import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { Badge } from "@/components/ui/badge";
 import { serviceBookingsApi } from "@/lib/resources";
 import type { Guest, Service, ServiceBooking, ServiceBookingStatus } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/service-bookings")({
   head: () => ({
@@ -41,7 +42,7 @@ const columns: LiveColumn<ServiceBooking>[] = [
   { header: "Guest", render: (b) => guestName(b.guest) },
   { header: "Service", render: (b) => serviceName(b.service) },
   { header: "Date & time", render: (b) => format(new Date(b.dateTime), "MMM d, HH:mm") },
-  { header: "Charge", render: (b) => `$${b.charge.toFixed(2)}` },
+  { header: "Charge", render: (b) => formatCurrency(b.charge) },
   { header: "Status", render: (b) => <Badge variant={STATUS_VARIANT[b.status]}>{b.status}</Badge> },
 ];
 

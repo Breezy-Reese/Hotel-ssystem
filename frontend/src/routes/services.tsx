@@ -6,6 +6,7 @@ import { LiveDataTable, type LiveColumn } from "@/components/live-data-table";
 import { Badge } from "@/components/ui/badge";
 import { servicesApi } from "@/lib/resources";
 import type { Service } from "@/lib/types";
+import { formatCurrency } from "../lib/currency";
 
 export const Route = createFileRoute("/services")({
   head: () => ({
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/services")({
 const columns: LiveColumn<Service>[] = [
   { header: "Service", render: (s) => <span className="font-medium">{s.name}</span> },
   { header: "Category", render: (s) => s.category },
-  { header: "Price", render: (s) => `$${s.price.toFixed(2)}` },
+  { header: "Price", render: (s) => formatCurrency(s.price) },
   { header: "Duration", render: (s) => (s.duration ? `${s.duration} min` : "—") },
   { header: "Availability", render: (s) => (s.availability ? "Available" : "Unavailable") },
   {
