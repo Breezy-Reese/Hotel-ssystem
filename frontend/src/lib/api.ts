@@ -1,9 +1,13 @@
-const API_URL = import.meta.env["VITE_API_URL"] ?? "http://localhost:5000/api/v1";
+const API_URL = import.meta.env.PROD
+  ? import.meta.env.VITE_PRODUCTION_API_URL
+  : import.meta.env.VITE_LOCAL_API_URL;
+
 const TOKEN_KEY = "aurelia_token";
 const USER_KEY = "aurelia_user";
 
 export class ApiError extends Error {
   status: number;
+
   constructor(message: string, status: number) {
     super(message);
     this.name = "ApiError";
@@ -32,18 +36,22 @@ export function getStoredUser<T = Record<string, unknown>>(): T | null {
   return raw ? (JSON.parse(raw) as T) : null;
 }
 
-// Fired whenever a request comes back 401, so any part of the app (namely
-// AuthProvider) can react and actually log the user out — clearing
-// localStorage alone doesn't update React state or trigger the redirect.
+// Fired whenever a request comes back 401, so any part of the app
+// (namely AuthProvider) can react and actually log the user out.
 const UNAUTHORIZED_EVENT = "auth:unauthorized";
 
 export function onUnauthorized(handler: () => void): () => void {
   if (typeof window === "undefined") return () => {};
+
   window.addEventListener(UNAUTHORIZED_EVENT, handler);
+
   return () => window.removeEventListener(UNAUTHORIZED_EVENT, handler);
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const token = getToken();
 
   const res = await fetch(`${API_URL}${path}`, {
@@ -56,28 +64,48 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   const contentType = res.headers.get("content-type") ?? "";
-  const body = contentType.includes("application/json") ? await res.json() : null;
+
+  const body = contentType.includes("application/json")
+    ? await res.json()
+    : null;
 
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
       clearSession();
       window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
     }
-    throw new ApiError(body?.message ?? res.statusText, res.status);
+
+    throw new ApiError(
+      body?.message ?? res.statusText,
+      res.status,
+    );
   }
 
   return body as T;
 }
 
 function withBody(method: string, data?: unknown): RequestInit {
-  return data !== undefined ? { method, body: JSON.stringify(data) } : { method };
+  return data !== undefined
+    ? {
+        method,
+        body: JSON.stringify(data),
+      }
+    : {
+        method,
+      };
 }
 
 export const api = {
   get: <T,>(path: string) => request<T>(path),
-  post: <T,>(path: string, data?: unknown) => request<T>(path, withBody("POST", data)),
-  patch: <T,>(path: string, data?: unknown) => request<T>(path, withBody("PATCH", data)),
-  delete: <T,>(path: string) => request<T>(path, { method: "DELETE" }),
+
+  post: <T,>(path: string, data?: unknown) =>
+    request<T>(path, withBody("POST", data)),
+
+  patch: <T,>(path: string, data?: unknown) =>
+    request<T>(path, withBody("PATCH", data)),
+
+  delete: <T,>(path: string) =>
+    request<T>(path, { method: "DELETE" }),
 };
 
 // Envelope shapes returned by the backend (see handlerFactory.js)
