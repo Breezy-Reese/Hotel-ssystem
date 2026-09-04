@@ -48,6 +48,15 @@ app.use(mongoSanitize());
 app.use(compression());
 
 // --- Health check ---
+// --- Root route (friendly response instead of a 404 at the bare URL) ---
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "Aurelia Suites API is running",
+    docs: "/api/health",
+  });
+});
+
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "success", message: "Aurelia Suites API is running" });
 });

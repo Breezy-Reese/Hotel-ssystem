@@ -32,5 +32,6 @@ router.use("/promotions", require("./promotionRoutes"));
 router.use("/loyalty", require("./loyaltyRoutes"));
 router.use("/audit-logs", require("./auditLogRoutes"));
 router.use("/documents", require("./documentRoutes"));
+router.use("/mpesa", require("./mpesaRoutes"));
 
 module.exports = router;
