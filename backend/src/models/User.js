@@ -13,6 +13,7 @@ const ROLES = [
   "Accountant",
   "HR",
   "Inventory",
+  "Customer",
 ];
 
 const userSchema = new mongoose.Schema(
@@ -34,6 +35,7 @@ const userSchema = new mongoose.Schema(
     },
     role: { type: String, enum: ROLES, default: "FrontDesk" },
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
+    guest : {type: mongoose.Schema.Types.ObjectId, ref : "Guest"},
     phone: { type: String, trim: true },
     status: {
       type: String,

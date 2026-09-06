@@ -148,23 +148,31 @@ function RootComponent() {
 // login page without the sidebar/header chrome.
 function AppShell() {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const pathname = useRouterState({
+    select: (s) => s.location.pathname,
+  });
+
   const navigate = useNavigate();
-  const isLoginRoute = pathname === "/login";
+
+  const isPublicRoute =
+    pathname === "/login" ||
+    pathname === "/customer/login" ||
+    pathname === "/customer/register";
 
   useEffect(() => {
     if (isLoading) return;
-    if (!isAuthenticated && !isLoginRoute) {
+
+    if (!isAuthenticated && !isPublicRoute) {
       navigate({ to: "/login" });
     }
-    if (isAuthenticated && isLoginRoute) {
-      navigate({ to: "/" });
-    }
-  }, [isLoading, isAuthenticated, isLoginRoute, navigate]);
+  }, [isLoading, isAuthenticated, isPublicRoute, navigate]);
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return null;
+  }
 
-  if (isLoginRoute || !isAuthenticated) {
+  if (isPublicRoute) {
     return <Outlet />;
   }
 
@@ -172,30 +180,48 @@ function AppShell() {
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
+
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur">
             <SidebarTrigger />
+
             <div className="relative hidden w-full max-w-sm items-center sm:flex">
               <Search className="absolute left-2.5 size-4 text-muted-foreground" />
-              <Input placeholder="Search rooms, guests, orders…" className="h-9 pl-8" />
+
+              <Input
+                placeholder="Search rooms, guests, orders…"
+                className="h-9 pl-8"
+              />
             </div>
+
             <div className="ml-auto flex items-center gap-2">
-              <Button variant="ghost" size="icon" aria-label="Notifications">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Notifications"
+              >
                 <Bell className="size-4" />
               </Button>
+
               <span
                 className="bg-brass flex size-8 items-center justify-center rounded-full text-xs font-semibold text-accent-foreground"
                 title={user?.name}
               >
                 {user?.name?.[0]?.toUpperCase() ?? "A"}
               </span>
-              <Button variant="ghost" size="icon" aria-label="Sign out" onClick={() => logout()}>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Sign out"
+                onClick={() => logout()}
+              >
                 <LogOut className="size-4" />
               </Button>
             </div>
           </header>
+
           <main className="flex-1 p-4 sm:p-6 lg:p-8">
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
           </main>
         </div>

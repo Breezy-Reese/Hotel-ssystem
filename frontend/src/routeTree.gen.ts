@@ -42,6 +42,14 @@ import { Route as SuppliersRouteImport } from './routes/suppliers'
 import { Route as TablesRouteImport } from './routes/tables'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as CustomerIndexRouteImport } from './routes/customer/index'
+import { Route as CustomerBookingsRouteImport } from './routes/customer/bookings'
+import { Route as CustomerLoginRouteImport } from './routes/customer/login'
+import { Route as CustomerOrdersRouteImport } from './routes/customer/orders'
+import { Route as CustomerRegisterRouteImport } from './routes/customer/register'
+import { Route as CustomerRestaurantRouteImport } from './routes/customer/restaurant'
+import { Route as CustomerRoomsRouteImport } from './routes/customer/rooms'
+import { Route as CustomerBookRoomIdRouteImport } from './routes/customer/book/$roomId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -208,6 +216,46 @@ const UsersRoute = UsersRouteImport.update({
   path: '/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CustomerIndexRoute = CustomerIndexRouteImport.update({
+  id: '/customer/',
+  path: '/customer/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerBookingsRoute = CustomerBookingsRouteImport.update({
+  id: '/customer/bookings',
+  path: '/customer/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerLoginRoute = CustomerLoginRouteImport.update({
+  id: '/customer/login',
+  path: '/customer/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerOrdersRoute = CustomerOrdersRouteImport.update({
+  id: '/customer/orders',
+  path: '/customer/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerRegisterRoute = CustomerRegisterRouteImport.update({
+  id: '/customer/register',
+  path: '/customer/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerRestaurantRoute = CustomerRestaurantRouteImport.update({
+  id: '/customer/restaurant',
+  path: '/customer/restaurant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerRoomsRoute = CustomerRoomsRouteImport.update({
+  id: '/customer/rooms',
+  path: '/customer/rooms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerBookRoomIdRoute = CustomerBookRoomIdRouteImport.update({
+  id: '/customer/book/$roomId',
+  path: '/customer/book/$roomId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -243,6 +291,14 @@ export interface FileRoutesByFullPath {
   '/tables': typeof TablesRoute
   '/tasks': typeof TasksRoute
   '/users': typeof UsersRoute
+  '/customer/bookings': typeof CustomerBookingsRoute
+  '/customer/login': typeof CustomerLoginRoute
+  '/customer/orders': typeof CustomerOrdersRoute
+  '/customer/register': typeof CustomerRegisterRoute
+  '/customer/restaurant': typeof CustomerRestaurantRoute
+  '/customer/rooms': typeof CustomerRoomsRoute
+  '/customer/': typeof CustomerIndexRoute
+  '/customer/book/$roomId': typeof CustomerBookRoomIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -278,6 +334,14 @@ export interface FileRoutesByTo {
   '/tables': typeof TablesRoute
   '/tasks': typeof TasksRoute
   '/users': typeof UsersRoute
+  '/customer/bookings': typeof CustomerBookingsRoute
+  '/customer/login': typeof CustomerLoginRoute
+  '/customer/orders': typeof CustomerOrdersRoute
+  '/customer/register': typeof CustomerRegisterRoute
+  '/customer/restaurant': typeof CustomerRestaurantRoute
+  '/customer/rooms': typeof CustomerRoomsRoute
+  '/customer': typeof CustomerIndexRoute
+  '/customer/book/$roomId': typeof CustomerBookRoomIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -314,6 +378,14 @@ export interface FileRoutesById {
   '/tables': typeof TablesRoute
   '/tasks': typeof TasksRoute
   '/users': typeof UsersRoute
+  '/customer/bookings': typeof CustomerBookingsRoute
+  '/customer/login': typeof CustomerLoginRoute
+  '/customer/orders': typeof CustomerOrdersRoute
+  '/customer/register': typeof CustomerRegisterRoute
+  '/customer/restaurant': typeof CustomerRestaurantRoute
+  '/customer/rooms': typeof CustomerRoomsRoute
+  '/customer/': typeof CustomerIndexRoute
+  '/customer/book/$roomId': typeof CustomerBookRoomIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -351,6 +423,14 @@ export interface FileRouteTypes {
     | '/tables'
     | '/tasks'
     | '/users'
+    | '/customer/bookings'
+    | '/customer/login'
+    | '/customer/orders'
+    | '/customer/register'
+    | '/customer/restaurant'
+    | '/customer/rooms'
+    | '/customer/'
+    | '/customer/book/$roomId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -386,6 +466,14 @@ export interface FileRouteTypes {
     | '/tables'
     | '/tasks'
     | '/users'
+    | '/customer/bookings'
+    | '/customer/login'
+    | '/customer/orders'
+    | '/customer/register'
+    | '/customer/restaurant'
+    | '/customer/rooms'
+    | '/customer'
+    | '/customer/book/$roomId'
   id:
     | '__root__'
     | '/'
@@ -421,6 +509,14 @@ export interface FileRouteTypes {
     | '/tables'
     | '/tasks'
     | '/users'
+    | '/customer/bookings'
+    | '/customer/login'
+    | '/customer/orders'
+    | '/customer/register'
+    | '/customer/restaurant'
+    | '/customer/rooms'
+    | '/customer/'
+    | '/customer/book/$roomId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -457,6 +553,14 @@ export interface RootRouteChildren {
   TablesRoute: typeof TablesRoute
   TasksRoute: typeof TasksRoute
   UsersRoute: typeof UsersRoute
+  CustomerBookingsRoute: typeof CustomerBookingsRoute
+  CustomerLoginRoute: typeof CustomerLoginRoute
+  CustomerOrdersRoute: typeof CustomerOrdersRoute
+  CustomerRegisterRoute: typeof CustomerRegisterRoute
+  CustomerRestaurantRoute: typeof CustomerRestaurantRoute
+  CustomerRoomsRoute: typeof CustomerRoomsRoute
+  CustomerIndexRoute: typeof CustomerIndexRoute
+  CustomerBookRoomIdRoute: typeof CustomerBookRoomIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -692,6 +796,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/customer/': {
+      id: '/customer/'
+      path: '/customer'
+      fullPath: '/customer/'
+      preLoaderRoute: typeof CustomerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/bookings': {
+      id: '/customer/bookings'
+      path: '/customer/bookings'
+      fullPath: '/customer/bookings'
+      preLoaderRoute: typeof CustomerBookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/login': {
+      id: '/customer/login'
+      path: '/customer/login'
+      fullPath: '/customer/login'
+      preLoaderRoute: typeof CustomerLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/orders': {
+      id: '/customer/orders'
+      path: '/customer/orders'
+      fullPath: '/customer/orders'
+      preLoaderRoute: typeof CustomerOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/register': {
+      id: '/customer/register'
+      path: '/customer/register'
+      fullPath: '/customer/register'
+      preLoaderRoute: typeof CustomerRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/restaurant': {
+      id: '/customer/restaurant'
+      path: '/customer/restaurant'
+      fullPath: '/customer/restaurant'
+      preLoaderRoute: typeof CustomerRestaurantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/rooms': {
+      id: '/customer/rooms'
+      path: '/customer/rooms'
+      fullPath: '/customer/rooms'
+      preLoaderRoute: typeof CustomerRoomsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/book/$roomId': {
+      id: '/customer/book/$roomId'
+      path: '/customer/book/$roomId'
+      fullPath: '/customer/book/$roomId'
+      preLoaderRoute: typeof CustomerBookRoomIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -729,6 +889,14 @@ const rootRouteChildren: RootRouteChildren = {
   TablesRoute: TablesRoute,
   TasksRoute: TasksRoute,
   UsersRoute: UsersRoute,
+  CustomerBookingsRoute: CustomerBookingsRoute,
+  CustomerLoginRoute: CustomerLoginRoute,
+  CustomerOrdersRoute: CustomerOrdersRoute,
+  CustomerRegisterRoute: CustomerRegisterRoute,
+  CustomerRestaurantRoute: CustomerRestaurantRoute,
+  CustomerRoomsRoute: CustomerRoomsRoute,
+  CustomerIndexRoute: CustomerIndexRoute,
+  CustomerBookRoomIdRoute: CustomerBookRoomIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
