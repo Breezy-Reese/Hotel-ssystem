@@ -155,27 +155,70 @@ function AppShell() {
 
   const navigate = useNavigate();
 
-  const isPublicRoute =
-    pathname === "/login" ||
-    pathname === "/customer/login" ||
-    pathname === "/customer/register";
+  // Check whether this is a customer page
+ const isCustomerRoute =
+  pathname === "/" || pathname.startsWith("/customer");
 
-  useEffect(() => {
-    if (isLoading) return;
+const isPublicRoute =
+  pathname === "/" ||
+  pathname === "/login" ||
+  pathname === "/customer/login" ||
+  pathname === "/customer/register";
 
-    if (!isAuthenticated && !isPublicRoute) {
-      navigate({ to: "/login" });
-    }
-  }, [isLoading, isAuthenticated, isPublicRoute, navigate]);
+ useEffect(() => {
+  if (isLoading) return;
+
+  // Public pages don't require authentication.
+  if (isPublicRoute) {
+    return;
+  }
+
+  // Customer pages require customer authentication.
+  if (!isAuthenticated && isCustomerRoute) {
+    navigate({
+      to: "/customer/login",
+      replace: true,
+    });
+    return;
+  }
+
+  // Staff/admin pages require authentication.
+  if (!isAuthenticated && !isCustomerRoute) {
+    navigate({
+      to: "/login",
+      replace: true,
+    });
+  }
+}, [
+  isLoading,
+  isAuthenticated,
+  isCustomerRoute,
+  isPublicRoute,
+  navigate,
+]);
 
   if (isLoading) {
     return null;
   }
 
+  // Login and registration pages
   if (isPublicRoute) {
     return <Outlet />;
   }
 
+  // ==========================================
+  // CUSTOMER AREA
+  // NO STAFF SIDEBAR
+  // NO STAFF HEADER
+  // ==========================================
+  if (isCustomerRoute) {
+    return <Outlet />;
+  }
+
+  // ==========================================
+  // STAFF / ADMIN AREA
+  // STAFF SIDEBAR + STAFF HEADER
+  // ==========================================
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">

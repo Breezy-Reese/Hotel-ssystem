@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as AuditLogsRouteImport } from './routes/audit-logs'
 import { Route as BranchesRouteImport } from './routes/branches'
+import { Route as CustomerHomeBackupRouteImport } from './routes/customer-home-backup'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as EmployeesRouteImport } from './routes/employees'
 import { Route as ExpensesRouteImport } from './routes/expenses'
@@ -69,6 +71,16 @@ const AuditLogsRoute = AuditLogsRouteImport.update({
 const BranchesRoute = BranchesRouteImport.update({
   id: '/branches',
   path: '/branches',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerHomeBackupRoute = CustomerHomeBackupRouteImport.update({
+  id: '/customer-home-backup',
+  path: '/customer-home-backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocumentsRoute = DocumentsRouteImport.update({
@@ -262,6 +274,8 @@ export interface FileRoutesByFullPath {
   '/attendance': typeof AttendanceRoute
   '/audit-logs': typeof AuditLogsRoute
   '/branches': typeof BranchesRoute
+  '/customer-home-backup': typeof CustomerHomeBackupRoute
+  '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/employees': typeof EmployeesRoute
   '/expenses': typeof ExpensesRoute
@@ -305,6 +319,8 @@ export interface FileRoutesByTo {
   '/attendance': typeof AttendanceRoute
   '/audit-logs': typeof AuditLogsRoute
   '/branches': typeof BranchesRoute
+  '/customer-home-backup': typeof CustomerHomeBackupRoute
+  '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/employees': typeof EmployeesRoute
   '/expenses': typeof ExpensesRoute
@@ -349,6 +365,8 @@ export interface FileRoutesById {
   '/attendance': typeof AttendanceRoute
   '/audit-logs': typeof AuditLogsRoute
   '/branches': typeof BranchesRoute
+  '/customer-home-backup': typeof CustomerHomeBackupRoute
+  '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/employees': typeof EmployeesRoute
   '/expenses': typeof ExpensesRoute
@@ -394,6 +412,8 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/audit-logs'
     | '/branches'
+    | '/customer-home-backup'
+    | '/dashboard'
     | '/documents'
     | '/employees'
     | '/expenses'
@@ -437,6 +457,8 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/audit-logs'
     | '/branches'
+    | '/customer-home-backup'
+    | '/dashboard'
     | '/documents'
     | '/employees'
     | '/expenses'
@@ -480,6 +502,8 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/audit-logs'
     | '/branches'
+    | '/customer-home-backup'
+    | '/dashboard'
     | '/documents'
     | '/employees'
     | '/expenses'
@@ -524,6 +548,8 @@ export interface RootRouteChildren {
   AttendanceRoute: typeof AttendanceRoute
   AuditLogsRoute: typeof AuditLogsRoute
   BranchesRoute: typeof BranchesRoute
+  CustomerHomeBackupRoute: typeof CustomerHomeBackupRoute
+  DashboardRoute: typeof DashboardRoute
   DocumentsRoute: typeof DocumentsRoute
   EmployeesRoute: typeof EmployeesRoute
   ExpensesRoute: typeof ExpensesRoute
@@ -591,6 +617,20 @@ declare module '@tanstack/react-router' {
       path: '/branches'
       fullPath: '/branches'
       preLoaderRoute: typeof BranchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer-home-backup': {
+      id: '/customer-home-backup'
+      path: '/customer-home-backup'
+      fullPath: '/customer-home-backup'
+      preLoaderRoute: typeof CustomerHomeBackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documents': {
@@ -860,6 +900,8 @@ const rootRouteChildren: RootRouteChildren = {
   AttendanceRoute: AttendanceRoute,
   AuditLogsRoute: AuditLogsRoute,
   BranchesRoute: BranchesRoute,
+  CustomerHomeBackupRoute: CustomerHomeBackupRoute,
+  DashboardRoute: DashboardRoute,
   DocumentsRoute: DocumentsRoute,
   EmployeesRoute: EmployeesRoute,
   ExpensesRoute: ExpensesRoute,

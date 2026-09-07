@@ -1,21 +1,15 @@
 import { useEffect, useState } from "react";
-import {
-  createFileRoute,
-  Link,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BedDouble,
   UtensilsCrossed,
   CalendarDays,
   Receipt,
-  LogOut,
 } from "lucide-react";
 
 import { api } from "../lib/api";
-import { useAuth } from "../lib/auth";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/customer-home-backup")({
   head: () => ({
     meta: [
       { title: "Hotel System — Book Rooms & Restaurant" },
@@ -51,9 +45,6 @@ interface MenuItem {
 }
 
 function CustomerHome() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
   const [rooms, setRooms] = useState<Room[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,17 +77,9 @@ function CustomerHome() {
     .filter((item) => item.availability)
     .slice(0, 6);
 
-  function handleLogout() {
-    logout();
-    navigate({
-      to: "/login",
-      replace: true,
-    });
-  }
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-600">Loading...</p>
       </div>
     );
@@ -107,20 +90,12 @@ function CustomerHome() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <Link
-            to="/"
-            className="text-2xl font-bold text-slate-900"
-          >
+          <Link to="/" className="text-2xl font-bold text-slate-900">
             Hotel System
           </Link>
 
-          {/* Navigation */}
           <nav className="flex items-center gap-5 text-sm">
-            <Link
-              to="/"
-              className="font-semibold text-blue-600"
-            >
+            <Link to="/" className="font-semibold text-blue-600">
               Home
             </Link>
 
@@ -152,29 +127,16 @@ function CustomerHome() {
               My Orders
             </Link>
 
-            {/* Login / Logout */}
-            {user ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 transition"
-              >
-                <LogOut className="size-4" />
-                Logout
-              </button>
-            ) : (
-              <Link
-                to="/login"
-                className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 transition"
-              >
-                Login
-              </Link>
-            )}
+            <Link
+              to="/customer/login"
+              className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+            >
+              Login
+            </Link>
           </nav>
         </div>
       </header>
 
-      {/* Main */}
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Hero */}
         <section className="mb-10">
@@ -183,19 +145,9 @@ function CustomerHome() {
           </h1>
 
           <p className="mt-2 text-slate-600">
-            Book a room, explore our restaurant, and manage your
-            reservations and orders.
+            Book a room, explore our restaurant, and manage your reservations
+            and orders.
           </p>
-
-          {user && (
-            <p className="mt-3 text-sm text-slate-500">
-              Welcome back,{" "}
-              <span className="font-semibold text-slate-700">
-                {user.name}
-              </span>
-              !
-            </p>
-          )}
         </section>
 
         {/* Quick actions */}
