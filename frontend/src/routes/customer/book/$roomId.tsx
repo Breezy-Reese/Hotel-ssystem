@@ -9,6 +9,7 @@ import {
 import { api, ApiError } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { formatCurrency } from "../../../lib/currency";
+import { useInitiateStkPush } from "../../../lib/mpesa";
 
 interface Room {
   _id: string;
@@ -41,9 +42,7 @@ interface BookingResponse {
   };
 }
 
-export const Route = createFileRoute(
-  "/customer/book/$roomId",
-)({
+export const Route = createFileRoute("/customer/book/$roomId")({
   head: () => ({
     meta: [
       {
@@ -56,11 +55,14 @@ export const Route = createFileRoute(
 
 function BookRoomPage() {
   const navigate = useNavigate();
+
   const { roomId } = useParams({
     from: "/customer/book/$roomId",
   });
 
   const { user, logout } = useAuth();
+
+  const initiateStkPush = useInitiateStkPush();
 
   const [room, setRoom] = useState<Room | null>(null);
 
@@ -69,6 +71,9 @@ function BookRoomPage() {
 
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
+
+  // Customer's M-Pesa phone number
+  const [phone, setPhone] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
@@ -105,8 +110,7 @@ function BookRoomPage() {
     const start = new Date(checkIn);
     const end = new Date(checkOut);
 
-    const difference =
-      end.getTime() - start.getTime();
+    const difference = end.getTime() - start.getTime();
 
     return Math.max(
       Math.round(
@@ -121,6 +125,18 @@ function BookRoomPage() {
   const total = room
     ? room.rate * nights
     : 0;
+
+  function normalizePhoneForDisplay(value: string) {
+    return value.replace(/\s+/g, "").trim();
+  }
+
+  function isValidKenyanPhone(value: string) {
+    const cleaned = normalizePhoneForDisplay(value);
+
+    return /^(?:07|01)\d{8}$/.test(cleaned) ||
+      /^254(?:7|1)\d{8}$/.test(cleaned) ||
+      /^\+254(?:7|1)\d{8}$/.test(cleaned);
+  }
 
   async function handleBooking(
     event: React.FormEvent<HTMLFormElement>,
@@ -164,34 +180,93 @@ function BookRoomPage() {
       return;
     }
 
+    if (!phone.trim()) {
+      setError(
+        "Please enter the customer's M-Pesa phone number.",
+      );
+      return;
+    }
+
+    if (!isValidKenyanPhone(phone)) {
+      setError(
+        "Please enter a valid Kenyan M-Pesa phone number, e.g. 0712345678.",
+      );
+      return;
+    }
+
+    if (total <= 0) {
+      setError(
+        "The booking total must be greater than zero.",
+      );
+      return;
+    }
+
     try {
       setIsBooking(true);
 
-      const response =
-        await api.post<BookingResponse>(
-          "/customer/bookings",
-          {
-            room: room._id,
-            checkIn,
-            checkOut,
-            adults,
-            children,
-          },
-        );
+      /*
+       * STEP 1:
+       * Create the reservation.
+       */
+      const response = await api.post<BookingResponse>(
+        "/reservations",
+        {
+          room: room._id,
+          checkIn,
+          checkOut,
+          adults,
+          children,
+          phone: normalizePhoneForDisplay(phone),
+        },
+      );
 
+      const reservationId = response.data._id;
+      const reservationRef = response.data.ref;
+
+      /*
+       * STEP 2:
+       * Send M-Pesa STK Push to the customer's phone.
+       */
+      await initiateStkPush.mutateAsync({
+        phone: normalizePhoneForDisplay(phone),
+        amount: total,
+        source: "Reservation",
+        sourceId: reservationId,
+        accountReference: reservationRef,
+        transactionDesc: "Room booking",
+      });
+
+      /*
+       * STEP 3:
+       * STK request was successfully accepted.
+       * The customer should now receive the M-Pesa prompt.
+       */
+      console.log(
+        "Reservation created:",
+        reservationRef,
+      );
+
+      console.log(
+        "M-Pesa STK Push sent to:",
+        normalizePhoneForDisplay(phone),
+      );
+
+      /*
+       * STEP 4:
+       * Take customer to their bookings page.
+       */
       await navigate({
         to: "/customer/bookings",
       });
-
-      console.log(
-        "Booking created:",
-        response.data.ref,
-      );
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
-        setError("Unable to complete your booking.");
+        setError(
+          "Unable to complete the booking and payment request.",
+        );
       }
     } finally {
       setIsBooking(false);
@@ -236,7 +311,8 @@ function BookRoomPage() {
           </h1>
 
           <p className="mt-2 text-slate-500">
-            {error || "This room is no longer available."}
+            {error ||
+              "This room is no longer available."}
           </p>
 
           <Link
@@ -373,7 +449,7 @@ function BookRoomPage() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              Select your dates and number of guests.
+              Enter your booking details and M-Pesa number.
             </p>
 
             {error && (
@@ -386,11 +462,39 @@ function BookRoomPage() {
               onSubmit={handleBooking}
               className="mt-6 space-y-5"
             >
+              {/* M-Pesa Phone */}
+              <div>
+                <label
+                  htmlFor="phone"
+                  className="mb-1 block text-sm font-medium text-slate-700"
+                >
+                  M-Pesa Phone Number
+                </label>
+
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(event) =>
+                    setPhone(event.target.value)
+                  }
+                  placeholder="0712345678"
+                  required
+                  disabled={isBooking}
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                />
+
+                <p className="mt-1 text-xs text-slate-500">
+                  The M-Pesa payment prompt will be sent to
+                  this number.
+                </p>
+              </div>
+
               {/* Check In */}
               <div>
                 <label
                   htmlFor="checkIn"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-slate-700"
                 >
                   Check-in
                 </label>
@@ -399,14 +503,17 @@ function BookRoomPage() {
                   id="checkIn"
                   type="date"
                   value={checkIn}
-                  min={new Date()
-                    .toISOString()
-                    .split("T")[0]}
+                  min={
+                    new Date()
+                      .toISOString()
+                      .split("T")[0]
+                  }
                   onChange={(event) =>
                     setCheckIn(event.target.value)
                   }
                   required
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                  disabled={isBooking}
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 />
               </div>
 
@@ -414,7 +521,7 @@ function BookRoomPage() {
               <div>
                 <label
                   htmlFor="checkOut"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="mb-1 block text-sm font-medium text-slate-700"
                 >
                   Check-out
                 </label>
@@ -433,7 +540,8 @@ function BookRoomPage() {
                     setCheckOut(event.target.value)
                   }
                   required
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                  disabled={isBooking}
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 />
               </div>
 
@@ -442,7 +550,7 @@ function BookRoomPage() {
                 <div>
                   <label
                     htmlFor="adults"
-                    className="block text-sm font-medium text-slate-700 mb-1"
+                    className="mb-1 block text-sm font-medium text-slate-700"
                   >
                     Adults
                   </label>
@@ -462,14 +570,15 @@ function BookRoomPage() {
                       )
                     }
                     required
-                    className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    disabled={isBooking}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="children"
-                    className="block text-sm font-medium text-slate-700 mb-1"
+                    className="mb-1 block text-sm font-medium text-slate-700"
                   >
                     Children
                   </label>
@@ -478,7 +587,10 @@ function BookRoomPage() {
                     id="children"
                     type="number"
                     min={0}
-                    max={room.capacity - adults}
+                    max={Math.max(
+                      room.capacity - adults,
+                      0,
+                    )}
                     value={children}
                     onChange={(event) =>
                       setChildren(
@@ -488,7 +600,8 @@ function BookRoomPage() {
                         ),
                       )
                     }
-                    className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    disabled={isBooking}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                   />
                 </div>
               </div>
@@ -526,20 +639,29 @@ function BookRoomPage() {
                 </div>
               </div>
 
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={
                   isBooking ||
+                  initiateStkPush.isPending ||
                   !checkIn ||
                   !checkOut ||
+                  !phone ||
                   nights <= 0
                 }
                 className="w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isBooking
-                  ? "Confirming Reservation..."
-                  : "Confirm Booking"}
+                {isBooking ||
+                initiateStkPush.isPending
+                  ? "Sending M-Pesa Prompt..."
+                  : "Confirm Booking & Pay"}
               </button>
+
+              <p className="text-center text-xs text-slate-500">
+                After confirming, the M-Pesa payment prompt
+                will be sent to the phone number entered above.
+              </p>
             </form>
           </div>
         </div>
