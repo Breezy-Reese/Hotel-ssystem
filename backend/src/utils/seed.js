@@ -103,6 +103,26 @@ async function upsertMany(Model, items, findKeys) {
   console.log(`Employees: ${employees.length} created`);
 
   // --- Rooms ---
+  const roomDefaultImage =
+    "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&q=80";
+
+  const roomImageByNumber = {
+    "101": "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&q=80",
+    "102": "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80",
+    "103": "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1200&q=80",
+    "201": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
+    "202": "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&q=80",
+    "203": "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?auto=format&fit=crop&w=1200&q=80",
+    "204": "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80",
+    "301": "https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=1200&q=80",
+    "302": "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
+    "303": "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=80",
+    "401": "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?auto=format&fit=crop&w=1200&q=80",
+    "402": "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80",
+    "501": "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=80",
+    "502": "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80",
+  };
+
   const roomDefs = [
     { roomNumber: "101", type: "Single", capacity: 1, rate: 60, amenities: ["WiFi", "TV"], status: "Available" },
     { roomNumber: "102", type: "Single", capacity: 1, rate: 60, amenities: ["WiFi", "TV"], status: "Available" },
@@ -118,8 +138,31 @@ async function upsertMany(Model, items, findKeys) {
     { roomNumber: "303", type: "Deluxe", capacity: 2, rate: 140, amenities: ["WiFi", "TV", "Minibar", "Balcony"], status: "Available" },
     { roomNumber: "402", type: "Executive", capacity: 3, rate: 220, amenities: ["WiFi", "TV", "Minibar", "Lounge access"], status: "Cleaning" },
     { roomNumber: "502", type: "Suite", capacity: 4, rate: 380, amenities: ["WiFi", "TV", "Minibar", "Jacuzzi", "Lounge access", "Private balcony"], status: "Available" },
-  ].map((r) => ({ ...r, branch: branch._id }));
+  ].map((r) => ({
+    ...r,
+    images: [roomImageByNumber[r.roomNumber] || roomDefaultImage],
+    branch: branch._id,
+  }));
   const rooms = await upsertMany(Room, roomDefs, ["branch", "roomNumber"]);
+
+  // Populate photos for existing seeded rooms without replacing
+  // photos that an administrator has already uploaded.
+  for (const roomDef of roomDefs) {
+    const existingRoom = await Room.findOne({
+      branch: branch._id,
+      roomNumber: roomDef.roomNumber,
+    });
+
+    if (
+      existingRoom &&
+      (!Array.isArray(existingRoom.images) ||
+        existingRoom.images.length === 0)
+    ) {
+      existingRoom.images = roomDef.images;
+      await existingRoom.save();
+    }
+  }
+
   const allRooms = await Room.find({ branch: branch._id });
   console.log(`Rooms: ${rooms.length} created (${allRooms.length} total)`);
 
@@ -156,6 +199,25 @@ async function upsertMany(Model, items, findKeys) {
   }
 
   // --- Menu items ---
+  const menuDefaultImage =
+    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80";
+
+  const menuImageByName = {
+    "Grilled Chicken": "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=1200&q=80",
+    "Beef Burger": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80",
+    "Caesar Salad": "https://images.unsplash.com/photo-1546793665-c74683f339c1?auto=format&fit=crop&w=1200&q=80",
+    "Margherita Pizza": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=1200&q=80",
+    "Chocolate Cake": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1200&q=80",
+    "Fresh Juice": "https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=1200&q=80",
+    "Espresso": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1200&q=80",
+    "Fish Fillet": "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=1200&q=80",
+    "Vegetable Stir Fry": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=80",
+    "Onion Soup": "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=1200&q=80",
+    "Spring Rolls": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=80",
+    "Cheesecake": "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&w=1200&q=80",
+    "Iced Tea": "https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=1200&q=80",
+  };
+
   const menuDefs = [
     { name: "Grilled Chicken", category: "Main Course", price: 12.5 },
     { name: "Beef Burger", category: "Main Course", price: 9.0 },
@@ -170,8 +232,27 @@ async function upsertMany(Model, items, findKeys) {
     { name: "Spring Rolls", category: "Starters", price: 4.5 },
     { name: "Cheesecake", category: "Desserts", price: 5.5 },
     { name: "Iced Tea", category: "Beverages", price: 3.0 },
-  ].map((m) => ({ ...m, branch: branch._id }));
+  ].map((m) => ({
+    ...m,
+    image: menuImageByName[m.name] || menuDefaultImage,
+    branch: branch._id,
+  }));
   const menuItems = await upsertMany(MenuItem, menuDefs, ["branch", "name"]);
+
+  // Populate photos for existing menu items that lack an image.
+  // Preserve any image already uploaded by an administrator.
+  for (const menuDef of menuDefs) {
+    const existingItem = await MenuItem.findOne({
+      branch: branch._id,
+      name: menuDef.name,
+    });
+
+    if (existingItem && !existingItem.image) {
+      existingItem.image = menuDef.image;
+      await existingItem.save();
+    }
+  }
+
   const allMenuItems = await MenuItem.find({ branch: branch._id });
   console.log(`Menu items: ${menuItems.length} created (${allMenuItems.length} total)`);
 
