@@ -1,13 +1,12 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import {
-  Outlet,
-  Link,
   createRootRouteWithContext,
-  useRouter,
-  useRouterState,
-  useNavigate,
   HeadContent,
+  Outlet,
   Scripts,
+  useNavigate,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { Bell, LogOut, Search } from "lucide-react";
@@ -15,109 +14,43 @@ import { Bell, LogOut, Search } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider, useAuth } from "@/lib/auth";
+
 import appCss from "../styles.css?url";
-import { AuthProvider, useAuth } from "../lib/auth";
 
-function NotFoundComponent() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
+interface RouterContext {
+  queryClient: QueryClient;
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
-  const router = useRouter();
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Aurelia Suites — Hotel & Restaurant Management" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
+      },
+      {
+        title: "Aurelia Suites — Hospitality Management",
+      },
       {
         name: "description",
         content:
-          "Unified hotel, restaurant and hospitality management console for rooms, bookings, dining, finance and staff.",
+          "Aurelia Suites hotel management and customer booking portal.",
       },
-      { property: "og:title", content: "Aurelia Suites — Hospitality Management System" },
-      {
-        property: "og:description",
-        content:
-          "Run rooms, reservations, restaurant, finance, inventory and staff from one console.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@300;400;500;600&display=swap",
-      },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
-  shellComponent: RootShell,
   component: RootComponent,
-  notFoundComponent: NotFoundComponent,
-  errorComponent: ErrorComponent,
+  shellComponent: RootDocument,
 });
 
-function RootShell({ children }: { children: ReactNode }) {
+function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -139,86 +72,120 @@ function RootComponent() {
       <AuthProvider>
         <AppShell />
       </AuthProvider>
+
       <Toaster />
     </QueryClientProvider>
   );
 }
 
-// Gates every route except /login behind authentication, and renders the
-// login page without the sidebar/header chrome.
 function AppShell() {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
 
   const pathname = useRouterState({
-    select: (s) => s.location.pathname,
+    select: (state) => state.location.pathname,
   });
 
   const navigate = useNavigate();
 
-  // Check whether this is a customer page
- const isCustomerRoute =
-  pathname === "/" || pathname.startsWith("/customer");
+  // Customer pages use their own layout instead of the staff sidebar.
+  const isCustomerRoute =
+    pathname === "/" || pathname.startsWith("/customer");
 
-const isPublicRoute =
-  pathname === "/" ||
-  pathname === "/login" ||
-  pathname === "/customer/login" ||
-  pathname === "/customer/register";
+  // These pages are accessible without a logged-in session.
+  const isPublicRoute =
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/customer/login" ||
+    pathname === "/customer/register";
 
- useEffect(() => {
-  if (isLoading) return;
+  // These customer pages already render their own logout controls.
+  const customerPageHasOwnLogout =
+    pathname === "/customer/rooms" ||
+    pathname === "/customer/bookings" ||
+    pathname.startsWith("/customer/book/");
 
-  // Public pages don't require authentication.
-  if (isPublicRoute) {
-    return;
-  }
+  // Protect staff and customer pages.
+  useEffect(() => {
+    if (isLoading || isPublicRoute || isAuthenticated) {
+      return;
+    }
 
-  // Customer pages require customer authentication.
-  if (!isAuthenticated && isCustomerRoute) {
-    navigate({
-      to: "/customer/login",
-      replace: true,
-    });
-    return;
-  }
+    if (isCustomerRoute) {
+      void navigate({
+        to: "/customer/login",
+        replace: true,
+      });
+      return;
+    }
 
-  // Staff/admin pages require authentication.
-  if (!isAuthenticated && !isCustomerRoute) {
-    navigate({
+    void navigate({
       to: "/login",
       replace: true,
     });
-  }
-}, [
-  isLoading,
-  isAuthenticated,
-  isCustomerRoute,
-  isPublicRoute,
-  navigate,
-]);
+  }, [
+    isLoading,
+    isPublicRoute,
+    isAuthenticated,
+    isCustomerRoute,
+    navigate,
+  ]);
 
   if (isLoading) {
     return null;
   }
 
-  // Login and registration pages
+  // Login and registration pages do not show the application header.
   if (isPublicRoute) {
     return <Outlet />;
   }
 
-  // ==========================================
-  // CUSTOMER AREA
-  // NO STAFF SIDEBAR
-  // NO STAFF HEADER
-  // ==========================================
+  // Customer area: show a shared logout header on pages that need one.
   if (isCustomerRoute) {
-    return <Outlet />;
+    return (
+      <div className="min-h-screen bg-background">
+        {isAuthenticated && !customerPageHasOwnLogout && (
+          <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6">
+            <div className="min-w-0">
+              <p className="font-display truncate text-sm font-semibold">
+                Aurelia Suites
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Customer Portal
+              </p>
+            </div>
+
+            <div className="ml-auto flex items-center gap-3">
+              <span className="hidden max-w-40 truncate text-sm text-muted-foreground sm:inline">
+                {user?.name}
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  logout();
+                  void navigate({
+                    to: "/customer/login",
+                    replace: true,
+                  });
+                }}
+              >
+                <LogOut className="mr-2 size-4" />
+                Logout
+              </Button>
+            </div>
+          </header>
+        )}
+
+        <main>
+          <Outlet />
+        </main>
+      </div>
+    );
   }
 
-  // ==========================================
-  // STAFF / ADMIN AREA
-  // STAFF SIDEBAR + STAFF HEADER
-  // ==========================================
+  // Staff and admin area.
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -234,32 +201,46 @@ const isPublicRoute =
               <Input
                 placeholder="Search rooms, guests, orders…"
                 className="h-9 pl-8"
+                aria-label="Search rooms, guests and orders"
               />
             </div>
 
             <div className="ml-auto flex items-center gap-2">
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 aria-label="Notifications"
+                title="Notifications"
               >
                 <Bell className="size-4" />
               </Button>
 
               <span
-                className="bg-brass flex size-8 items-center justify-center rounded-full text-xs font-semibold text-accent-foreground"
-                title={user?.name}
+                className="bg-brass flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-accent-foreground"
+                title={user?.name ?? "Account"}
+                aria-label={`Signed in as ${user?.name ?? "user"}`}
               >
                 {user?.name?.[0]?.toUpperCase() ?? "A"}
               </span>
 
               <Button
+                type="button"
                 variant="ghost"
-                size="icon"
+                size="sm"
+                className="gap-2"
                 aria-label="Sign out"
-                onClick={() => logout()}
+                title="Sign out"
+                onClick={() => {
+                  logout();
+                  void navigate({
+                    to: "/login",
+                    replace: true,
+                  });
+                }}
               >
                 <LogOut className="size-4" />
+                <span>Logout</span>
               </Button>
             </div>
           </header>
