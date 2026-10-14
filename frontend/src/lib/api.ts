@@ -1,12 +1,14 @@
 const API_URL =
   import.meta.env["VITE_API_URL"] ??
-  (typeof window !== "undefined" && window.location.hostname !== "localhost"
+  (typeof window !== "undefined" &&
+  window.location.hostname !== "localhost"
     ? "https://hotel-ssystem.onrender.com/api/v1"
     : "http://localhost:5000/api/v1");
 
 if (!API_URL) {
   throw new Error("API URL is not configured");
 }
+
 const TOKEN_KEY = "aurelia_token";
 const USER_KEY = "aurelia_user";
 
@@ -22,6 +24,7 @@ export class ApiError extends Error {
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
+
   return localStorage.getItem(TOKEN_KEY);
 }
 
@@ -35,22 +38,36 @@ export function clearSession() {
   localStorage.removeItem(USER_KEY);
 }
 
-export function getStoredUser<T = Record<string, unknown>>(): T | null {
+export function getStoredUser<
+  T = Record<string, unknown>,
+>(): T | null {
   if (typeof window === "undefined") return null;
+
   const raw = localStorage.getItem(USER_KEY);
+
   return raw ? (JSON.parse(raw) as T) : null;
 }
 
-// Fired whenever a request comes back 401, so any part of the app
-// (namely AuthProvider) can react and actually log the user out.
+// Notify the authentication provider when the API returns 401.
 const UNAUTHORIZED_EVENT = "auth:unauthorized";
 
-export function onUnauthorized(handler: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
+export function onUnauthorized(
+  handler: () => void,
+): () => void {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
 
-  window.addEventListener(UNAUTHORIZED_EVENT, handler);
+  window.addEventListener(
+    UNAUTHORIZED_EVENT,
+    handler,
+  );
 
-  return () => window.removeEventListener(UNAUTHORIZED_EVENT, handler);
+  return () =>
+    window.removeEventListener(
+      UNAUTHORIZED_EVENT,
+      handler,
+    );
 }
 
 async function request<T>(
@@ -59,37 +76,78 @@ async function request<T>(
 ): Promise<T> {
   const token = getToken();
 
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
+  const headers = new Headers(options.headers);
+
+  // Do not force JSON Content-Type for FormData.
+  // The browser must set its multipart boundary automatically.
+  if (
+    !(options.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(
+    `${API_URL}${path}`,
+    {
+      ...options,
+      headers,
     },
-  });
+  );
 
-  const contentType = res.headers.get("content-type") ?? "";
+  const contentType =
+    response.headers.get("content-type") ?? "";
 
-  const body = contentType.includes("application/json")
-    ? await res.json()
-    : null;
+  let body: unknown = null;
 
-  if (!res.ok) {
-    if (res.status === 401 && typeof window !== "undefined") {
+  if (contentType.includes("application/json")) {
+    body = await response.json();
+  } else {
+    const text = await response.text();
+
+    if (text) {
+      body = { message: text };
+    }
+  }
+
+  if (!response.ok) {
+    if (
+      response.status === 401 &&
+      typeof window !== "undefined"
+    ) {
       clearSession();
-      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+
+      window.dispatchEvent(
+        new Event(UNAUTHORIZED_EVENT),
+      );
     }
 
+    const message =
+      typeof body === "object" &&
+      body !== null &&
+      "message" in body &&
+      typeof body.message === "string"
+        ? body.message
+        : response.statusText ||
+          "The request failed.";
+
     throw new ApiError(
-      body?.message ?? res.statusText,
-      res.status,
+      message,
+      response.status,
     );
   }
 
   return body as T;
 }
 
-function withBody(method: string, data?: unknown): RequestInit {
+function withBody(
+  method: string,
+  data?: unknown,
+): RequestInit {
   return data !== undefined
     ? {
         method,
@@ -101,19 +159,51 @@ function withBody(method: string, data?: unknown): RequestInit {
 }
 
 export const api = {
-  get: <T,>(path: string) => request<T>(path),
+  get: <T,>(path: string) =>
+    request<T>(path),
 
-  post: <T,>(path: string, data?: unknown) =>
-    request<T>(path, withBody("POST", data)),
+  post: <T,>(
+    path: string,
+    data?: unknown,
+  ) =>
+    request<T>(
+      path,
+      withBody("POST", data),
+    ),
 
-  patch: <T,>(path: string, data?: unknown) =>
-    request<T>(path, withBody("PATCH", data)),
+  patch: <T,>(
+    path: string,
+    data?: unknown,
+  ) =>
+    request<T>(
+      path,
+      withBody("PATCH", data),
+    ),
 
   delete: <T,>(path: string) =>
-    request<T>(path, { method: "DELETE" }),
+    request<T>(path, {
+      method: "DELETE",
+    }),
+
+  /**
+   * Send multipart/form-data, including images.
+   *
+   * Example:
+   * const formData = new FormData();
+   * formData.append("images", file);
+   * await api.upload("/rooms/images", formData);
+   */
+  upload: <T,>(
+    path: string,
+    formData: FormData,
+  ) =>
+    request<T>(path, {
+      method: "POST",
+      body: formData,
+    }),
 };
 
-// Envelope shapes returned by the backend (see handlerFactory.js)
+// Response envelopes returned by the backend.
 export interface ListResponse<T> {
   status: string;
   results: number;
