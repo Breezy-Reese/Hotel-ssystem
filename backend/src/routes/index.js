@@ -34,4 +34,5 @@ router.use("/audit-logs", require("./auditLogRoutes"));
 router.use("/documents", require("./documentRoutes"));
 router.use("/mpesa", require("./mpesaRoutes"));
 router.use("/customer-auth", require("./customerAuthRoutes"));
+router.use("/customer", require("./customerRoutes"));
 module.exports = router;
