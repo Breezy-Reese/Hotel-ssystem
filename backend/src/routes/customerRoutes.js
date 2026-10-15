@@ -9,19 +9,16 @@ const AppError = require("../utils/AppError");
 
 const router = express.Router();
 
-// Every customer booking endpoint requires a valid login.
 router.use(protect);
 
-// Return reservations created by the current user, plus reservations
-// linked to that user's Guest record when a guest association exists.
-function customerOwnershipFilter(user) {
-  const owners = [{ createdBy: user._id }];
+function ownershipFilter(user) {
+  const conditions = [{ createdBy: user._id }];
 
   if (user.guest) {
-    owners.push({ guest: user.guest });
+    conditions.push({ guest: user.guest });
   }
 
-  return { $or: owners };
+  return { $or: conditions };
 }
 
 // GET /api/v1/customer/bookings
@@ -29,16 +26,10 @@ router.get(
   "/bookings",
   catchAsync(async (req, res) => {
     const bookings = await Reservation.find(
-      customerOwnershipFilter(req.user)
+      ownershipFilter(req.user)
     )
-      .populate({
-        path: "room",
-        select: "roomNumber type images rate status",
-      })
-      .populate({
-        path: "branch",
-        select: "name location",
-      })
+      .populate("room", "roomNumber type images rate status")
+      .populate("branch", "name location")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -47,14 +38,13 @@ router.get(
       total: bookings.length,
       page: 1,
       limit: bookings.length,
-      pages: bookings.length > 0 ? 1 : 0,
+      pages: bookings.length ? 1 : 0,
       data: bookings,
     });
   })
 );
 
-// Check ownership before allowing the existing cancellation controller
-// to execute its normal reservation cancellation logic.
+// Check ownership before permitting a cancellation.
 const ensureOwnBooking = catchAsync(async (req, res, next) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return next(new AppError("Booking not found.", 404));
@@ -62,7 +52,7 @@ const ensureOwnBooking = catchAsync(async (req, res, next) => {
 
   const booking = await Reservation.findOne({
     _id: req.params.id,
-    ...customerOwnershipFilter(req.user),
+    ...ownershipFilter(req.user),
   }).select("_id");
 
   if (!booking) {
