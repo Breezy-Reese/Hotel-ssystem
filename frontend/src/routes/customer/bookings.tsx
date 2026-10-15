@@ -33,6 +33,12 @@ interface Reservation {
     _id: string;
     name?: string;
   };
+  guest?: {
+    _id?: string;
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
 }
 
 interface BookingsResponse {
@@ -66,6 +72,8 @@ function CustomerBookingsPage() {
   const [cancelling, setCancelling] = useState<string | null>(
     null,
   );
+  const [paying, setPaying] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
 
   async function loadBookings() {
     try {
@@ -91,6 +99,75 @@ function CustomerBookingsPage() {
   useEffect(() => {
     loadBookings();
   }, []);
+
+  async function continuePayment(booking: Reservation) {
+    if (paying || cancelling) return;
+
+    if (booking.status !== "Pending") {
+      setError("Only pending bookings can continue to payment.");
+      return;
+    }
+
+    const defaultPhone = booking.guest?.phone ?? "";
+    const enteredPhone = window.prompt(
+      "Enter the M-Pesa phone number to receive the payment prompt:",
+      defaultPhone,
+    );
+
+    if (enteredPhone === null || !enteredPhone.trim()) {
+      return;
+    }
+
+    const checkInMs = new Date(booking.checkIn).getTime();
+    const checkOutMs = new Date(booking.checkOut).getTime();
+    const nights = Math.round(
+      (checkOutMs - checkInMs) / (1000 * 60 * 60 * 24),
+    );
+
+    if (!Number.isFinite(nights) || nights < 1) {
+      setError("This booking has invalid check-in or check-out dates.");
+      return;
+    }
+
+    const amount = Math.round(booking.rateAtBooking * nights);
+
+    if (!Number.isFinite(amount) || amount < 1) {
+      setError("The payment amount for this booking is invalid.");
+      return;
+    }
+
+    try {
+      setPaying(booking._id);
+      setError("");
+      setNotice("");
+
+      const response = await api.post<{
+        status: string;
+        message?: string;
+        data?: { checkoutRequestId?: string };
+      }>("/mpesa/stk-push", {
+        phone: enteredPhone.trim(),
+        amount,
+        source: "Reservation",
+        sourceId: booking._id,
+        accountReference: booking.ref,
+        transactionDesc: "Room booking",
+      });
+
+      setNotice(
+        response.message ||
+          `M-Pesa prompt requested for booking ${booking.ref}. Check your phone and enter your M-Pesa PIN if prompted.`,
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Unable to initiate payment. Please try again.",
+      );
+    } finally {
+      setPaying(null);
+    }
+  }
 
   async function cancelBooking(id: string) {
     if (cancelling) return;
@@ -224,6 +301,15 @@ function CustomerBookingsPage() {
           </div>
         )}
 
+        {notice && (
+          <div
+            role="status"
+            className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
+          >
+            {notice}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="py-20 text-center text-slate-500">
             Loading your bookings...
@@ -336,11 +422,24 @@ function CustomerBookingsPage() {
                   booking.status,
                 ) && (
                   <div className="mt-5 border-t border-slate-100 pt-5">
+                    {booking.status === "Pending" && (
+                      <button
+                        type="button"
+                        onClick={() => continuePayment(booking)}
+                        disabled={paying !== null || cancelling === booking._id}
+                        className="mr-3 mb-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {paying === booking._id
+                          ? "Sending prompt..."
+                          : "Continue Payment"}
+                      </button>
+                    )}
+
                     <button
                       onClick={() =>
                         cancelBooking(booking._id)
                       }
-                      disabled={cancelling === booking._id}
+                      disabled={cancelling === booking._id || paying === booking._id}
                       className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                     >
                       {cancelling === booking._id

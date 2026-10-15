@@ -30,6 +30,7 @@ router.get(
     )
       .populate("room", "roomNumber type images rate status")
       .populate("branch", "name location")
+      .populate("guest", "name phone email")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
