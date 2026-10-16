@@ -1,12 +1,12 @@
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
-
 const mpesaService = require("../services/mpesaService");
 
 const MpesaTransaction = require("../models/MpesaTransaction");
 const Payment = require("../models/Payment");
 const Invoice = require("../models/Invoice");
 const Reservation = require("../models/Reservation");
+const Order = require("../models/Order");
 
 const VALID_SOURCES = [
   "Reservation",
@@ -64,12 +64,55 @@ exports.initiatePayment = catchAsync(async (req, res, next) => {
   // Validate amount
   // ---------------------------------------------------------
 
-  const numericAmount = Number(amount);
+  let numericAmount = Number(amount);
 
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
     return next(
       new AppError("amount must be greater than 0", 400)
     );
+  }
+
+  // ---------------------------------------------------------
+  // Order payments: trust the database, not the browser.
+  //
+  // The amount is always taken from the order's real total, so a
+  // customer cannot pay less than the order is worth.
+  // ---------------------------------------------------------
+
+  if (source === "Order") {
+    const order = await Order.findById(sourceId);
+
+    if (!order) {
+      return next(new AppError("Order not found", 404));
+    }
+
+    // Only the customer who placed the order may pay for it.
+    if (
+      order.createdBy &&
+      String(order.createdBy) !== String(req.user._id)
+    ) {
+      return next(new AppError("Order not found", 404));
+    }
+
+    if (order.paymentStatus === "Paid") {
+      return next(
+        new AppError("This order has already been paid", 400)
+      );
+    }
+
+    if (order.status === "Cancelled") {
+      return next(
+        new AppError("A cancelled order cannot be paid", 400)
+      );
+    }
+
+    numericAmount = Math.round(order.total);
+
+    if (!Number.isFinite(numericAmount) || numericAmount < 1) {
+      return next(
+        new AppError("This order has an invalid total", 400)
+      );
+    }
   }
 
   // ---------------------------------------------------------
@@ -210,9 +253,7 @@ exports.handleCallback = async (req, res) => {
     } = callback;
 
     if (!CheckoutRequestID) {
-      console.warn(
-        "M-Pesa callback missing CheckoutRequestID"
-      );
+      console.warn("M-Pesa callback missing CheckoutRequestID");
 
       return res.status(200).json({
         ResultCode: 0,
@@ -271,24 +312,16 @@ exports.handleCallback = async (req, res) => {
       const items = CallbackMetadata?.Item || [];
 
       const getItem = (name) => {
-        const item = items.find(
-          (entry) => entry.Name === name
-        );
+        const item = items.find((entry) => entry.Name === name);
 
         return item?.Value;
       };
 
-      const paidAmount = Number(
-        getItem("Amount") ?? txn.amount
-      );
+      const paidAmount = Number(getItem("Amount") ?? txn.amount);
 
-      const receiptNumber = getItem(
-        "MpesaReceiptNumber"
-      );
+      const receiptNumber = getItem("MpesaReceiptNumber");
 
-      const transactionDate = getItem(
-        "TransactionDate"
-      );
+      const transactionDate = getItem("TransactionDate");
 
       // -----------------------------------------------------
       // Update M-Pesa transaction
@@ -325,9 +358,7 @@ exports.handleCallback = async (req, res) => {
       // =====================================================
 
       if (txn.source === "Reservation") {
-        const reservation = await Reservation.findById(
-          txn.sourceId
-        );
+        const reservation = await Reservation.findById(txn.sourceId);
 
         if (reservation) {
           /*
@@ -354,17 +385,44 @@ exports.handleCallback = async (req, res) => {
       // =====================================================
 
       if (txn.source === "Invoice") {
-        const invoice = await Invoice.findById(
-          txn.sourceId
-        );
+        const invoice = await Invoice.findById(txn.sourceId);
 
         if (invoice) {
           invoice.status =
-            paidAmount >= invoice.total
-              ? "Paid"
-              : "Issued";
+            paidAmount >= invoice.total ? "Paid" : "Issued";
 
           await invoice.save();
+        }
+      }
+
+      // =====================================================
+      // ORDER PAYMENT
+      // =====================================================
+
+      if (txn.source === "Order") {
+        const order = await Order.findById(txn.sourceId);
+
+        if (!order) {
+          console.warn(
+            `Order not found for payment: ${txn.sourceId}`
+          );
+        } else if (paidAmount >= order.total) {
+          order.paymentStatus = "Paid";
+          order.paidAt = new Date();
+
+          if (receiptNumber) {
+            order.mpesaReceipt = String(receiptNumber);
+          }
+
+          await order.save();
+
+          console.log(
+            `Order ${order.orderNumber} paid via M-Pesa.`
+          );
+        } else {
+          console.warn(
+            `Order ${order.orderNumber} underpaid: ${paidAmount} < ${order.total}`
+          );
         }
       }
 
@@ -384,9 +442,7 @@ exports.handleCallback = async (req, res) => {
        * Other non-zero result codes are treated as failed.
        */
       txn.status =
-        Number(ResultCode) === 1032
-          ? "Cancelled"
-          : "Failed";
+        Number(ResultCode) === 1032 ? "Cancelled" : "Failed";
 
       await txn.save();
 
@@ -401,10 +457,7 @@ exports.handleCallback = async (req, res) => {
      * Safaricom should receive HTTP 200 even if our internal
      * database processing encounters a temporary problem.
      */
-    console.error(
-      "M-Pesa callback processing failed:",
-      error
-    );
+    console.error("M-Pesa callback processing failed:", error);
   }
 
   return res.status(200).json({
@@ -418,35 +471,30 @@ exports.handleCallback = async (req, res) => {
  *
  * Used by the frontend to poll the transaction status.
  */
-exports.getStatus = catchAsync(
-  async (req, res, next) => {
-    const { checkoutRequestId } = req.params;
+exports.getStatus = catchAsync(async (req, res, next) => {
+  const { checkoutRequestId } = req.params;
 
-    if (!checkoutRequestId) {
-      return next(
-        new AppError(
-          "CheckoutRequestID is required",
-          400
-        )
-      );
-    }
-
-    const txn = await MpesaTransaction.findOne({
-      checkoutRequestId,
-    });
-
-    if (!txn) {
-      return next(
-        new AppError(
-          "No transaction found with that checkout request ID",
-          404
-        )
-      );
-    }
-
-    return res.status(200).json({
-      status: "success",
-      data: txn,
-    });
+  if (!checkoutRequestId) {
+    return next(
+      new AppError("CheckoutRequestID is required", 400)
+    );
   }
-);
+
+  const txn = await MpesaTransaction.findOne({
+    checkoutRequestId,
+  });
+
+  if (!txn) {
+    return next(
+      new AppError(
+        "No transaction found with that checkout request ID",
+        404
+      )
+    );
+  }
+
+  return res.status(200).json({
+    status: "success",
+    data: txn,
+  });
+});

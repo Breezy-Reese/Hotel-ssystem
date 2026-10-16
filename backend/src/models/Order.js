@@ -29,6 +29,14 @@ const orderSchema = new mongoose.Schema(
       enum: ["Pending", "Preparing", "Ready", "Served", "Completed", "Cancelled"],
       default: "Pending",
     },
+    // Payment tracking (updated by the M-Pesa callback)
+    paymentStatus: {
+      type: String,
+      enum: ["Unpaid", "Paid"],
+      default: "Unpaid",
+    },
+    paidAt: { type: Date },
+    mpesaReceipt: { type: String, trim: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } },
