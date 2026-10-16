@@ -1,9 +1,19 @@
+import { createFileRoute } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/customer/bookings')({
+  component: RouteComponent,
+})
+
+function RouteComponent() {
+  return <div>Hello "/customer/bookings"!</div>
+}
 import { useEffect, useState } from "react";
 import {
   Link,
   useNavigate,
   createFileRoute,
 } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -264,6 +274,13 @@ function CustomerBookingsPage() {
             </Link>
 
             <Link
+              to="/customer/restaurant"
+              className="text-sm font-medium text-slate-600 hover:text-slate-900"
+            >
+              Restaurant
+            </Link>
+
+            <Link
               to="/customer/bookings"
               className="text-sm font-medium text-slate-900"
             >
@@ -285,6 +302,14 @@ function CustomerBookingsPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-6 py-10">
+        <Link
+          to="/customer/rooms"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
+        >
+          <ArrowLeft className="size-4" />
+          Back
+        </Link>
+
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-slate-900">
             My Bookings
