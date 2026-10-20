@@ -207,6 +207,7 @@ exports.initiatePayment = catchAsync(async (req, res, next) => {
     message:
       response.CustomerMessage ||
       "Check your phone to complete payment.",
+    sandbox: process.env.MPESA_ENV !== "production",
     data: {
       checkoutRequestId: txn.checkoutRequestId,
       transactionId: txn.transactionId,
@@ -496,5 +497,88 @@ exports.getStatus = catchAsync(async (req, res, next) => {
   return res.status(200).json({
     status: "success",
     data: txn,
+  });
+});
+
+/*
+ * POST /api/v1/mpesa/sandbox/complete/:checkoutRequestId
+ *
+ * SANDBOX ONLY.
+ *
+ * The Safaricom sandbox accepts STK Push requests but does not
+ * deliver a prompt to a real phone, so the real callback never
+ * arrives. This endpoint lets a developer simulate a successful
+ * payment for their own pending transaction by feeding a fake
+ * "successful" callback through the normal callback handler.
+ *
+ * It is disabled completely when MPESA_ENV=production.
+ */
+exports.simulateSandboxPayment = catchAsync(async (req, res, next) => {
+  if (process.env.MPESA_ENV === "production") {
+    return next(new AppError("Not found", 404));
+  }
+
+  const { checkoutRequestId } = req.params;
+
+  const txn = await MpesaTransaction.findOne({ checkoutRequestId });
+
+  // Only the user who started the payment may simulate it.
+  if (!txn || String(txn.initiatedBy) !== String(req.user._id)) {
+    return next(
+      new AppError(
+        "No transaction found with that checkout request ID",
+        404
+      )
+    );
+  }
+
+  if (txn.status !== "Pending") {
+    return res.status(200).json({
+      status: "success",
+      message: `Transaction is already ${txn.status}.`,
+      data: { status: txn.status },
+    });
+  }
+
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const transactionDate =
+    `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+    `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+  const fakeCallbackBody = {
+    Body: {
+      stkCallback: {
+        CheckoutRequestID: checkoutRequestId,
+        ResultCode: 0,
+        ResultDesc: "The service request is processed successfully. (sandbox simulation)",
+        CallbackMetadata: {
+          Item: [
+            { Name: "Amount", Value: txn.amount },
+            {
+              Name: "MpesaReceiptNumber",
+              Value: `SBX${Date.now().toString(36).toUpperCase()}`,
+            },
+            { Name: "TransactionDate", Value: Number(transactionDate) },
+            { Name: "PhoneNumber", Value: Number(txn.phone) },
+          ],
+        },
+      },
+    },
+  };
+
+  // Reuse the real callback logic so orders, bookings and invoices
+  // are updated exactly as they would be by a genuine payment.
+  await exports.handleCallback(
+    { body: fakeCallbackBody },
+    { status: () => ({ json: () => undefined }) }
+  );
+
+  const updated = await MpesaTransaction.findOne({ checkoutRequestId });
+
+  return res.status(200).json({
+    status: "success",
+    message: "Sandbox payment simulated.",
+    data: { status: updated?.status },
   });
 });

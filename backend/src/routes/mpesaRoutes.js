@@ -22,4 +22,12 @@ router.post("/stk-push", mpesaController.initiatePayment);
 // GET /api/v1/mpesa/status/:checkoutRequestId
 router.get("/status/:checkoutRequestId", mpesaController.getStatus);
 
+// POST /api/v1/mpesa/sandbox/complete/:checkoutRequestId
+// SANDBOX ONLY: simulates a successful payment. Returns 404 when
+// MPESA_ENV=production.
+router.post(
+  "/sandbox/complete/:checkoutRequestId",
+  mpesaController.simulateSandboxPayment
+);
+
 module.exports = router;
