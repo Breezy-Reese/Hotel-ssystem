@@ -1,12 +1,3 @@
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/customer/bookings')({
-  component: RouteComponent,
-})
-
-function RouteComponent() {
-  return <div>Hello "/customer/bookings"!</div>
-}
 import { useEffect, useState } from "react";
 import {
   Link,
