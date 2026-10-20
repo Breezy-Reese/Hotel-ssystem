@@ -9,6 +9,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { api } from "../../lib/api";
+import { OrderPayment } from "@/components/order-payment";
 
 export const Route = createFileRoute("/customer/restaurant")({
   component: CustomerRestaurant,
@@ -36,6 +37,19 @@ interface Branch {
   status: string;
 }
 
+interface PlacedOrder {
+  _id: string;
+  orderNumber: string;
+  total: number;
+  paymentStatus: "Unpaid" | "Paid";
+}
+
+interface CreatedOrder {
+  _id?: string;
+  orderNumber?: string;
+  total?: number;
+}
+
 function CustomerRestaurant() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -45,6 +59,9 @@ function CustomerRestaurant() {
   const [ordering, setOrdering] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(
+    null,
+  );
 
   useEffect(() => {
     async function loadData() {
@@ -148,6 +165,7 @@ function CustomerRestaurant() {
     setOrdering(true);
     setError("");
     setMessage("");
+    setPlacedOrder(null);
 
     try {
       /*
@@ -177,20 +195,34 @@ function CustomerRestaurant() {
         );
       }
 
-      await api.post("/orders", {
-        branch: finalBranchId,
-        type: "Takeaway",
-        items: cart.map((item) => ({
-          menuItem: item._id,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-      });
+      const response = await api.post<{ data?: CreatedOrder }>(
+        "/orders",
+        {
+          branch: finalBranchId,
+          type: "Takeaway",
+          items: cart.map((item) => ({
+            menuItem: item._id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+        },
+      );
+
+      const created = response?.data;
+
+      if (created?._id) {
+        setPlacedOrder({
+          _id: created._id,
+          orderNumber: created.orderNumber ?? "your order",
+          total: created.total ?? cartTotal,
+          paymentStatus: "Unpaid",
+        });
+      }
 
       setCart([]);
       setMessage(
-        "Order placed successfully! You can track it in My Orders.",
+        "Order placed successfully! You can pay now or track it in My Orders.",
       );
     } catch (err) {
       console.error(err);
@@ -232,6 +264,13 @@ function CustomerRestaurant() {
           </div>
 
           <div className="flex items-center gap-5">
+            <Link
+              to="/customer/rooms"
+              className="text-sm text-slate-600 hover:text-blue-600"
+            >
+              Rooms
+            </Link>
+
             <Link
               to="/customer/bookings"
               className="text-sm text-slate-600 hover:text-blue-600"
@@ -365,7 +404,37 @@ function CustomerRestaurant() {
           </section>
 
           {/* Cart */}
-          <aside className="lg:sticky lg:top-24 h-fit">
+          <aside className="lg:sticky lg:top-24 h-fit space-y-5">
+            {placedOrder && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                <p className="text-sm font-semibold text-slate-900">
+                  Order {placedOrder.orderNumber}
+                </p>
+
+                <p className="mb-3 mt-1 text-sm text-slate-600">
+                  KSh {placedOrder.total.toLocaleString()} — pay now with
+                  M-Pesa, or pay later from My Orders.
+                </p>
+
+                <OrderPayment
+                  order={{
+                    _id: placedOrder._id,
+                    orderNumber: placedOrder.orderNumber,
+                    total: placedOrder.total,
+                    status: "Pending",
+                    paymentStatus: placedOrder.paymentStatus,
+                  }}
+                  onPaid={() =>
+                    setPlacedOrder((current) =>
+                      current
+                        ? { ...current, paymentStatus: "Paid" }
+                        : current,
+                    )
+                  }
+                />
+              </div>
+            )}
+
             <div className="bg-white border border-slate-200 rounded-xl p-6">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-xl font-bold text-slate-900">
