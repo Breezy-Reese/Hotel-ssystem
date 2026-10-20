@@ -1,14 +1,9 @@
 const axios = require("axios");
 
-/*
- * M-Pesa environment
- *
- * sandbox:
- * https://sandbox.safaricom.co.ke
- *
- * production:
- * https://api.safaricom.co.ke
- */
+// ===========================================================
+// M-PESA ENVIRONMENT
+// ===========================================================
+
 const BASE_URL =
   process.env.MPESA_ENV === "production"
     ? "https://api.safaricom.co.ke"
@@ -18,15 +13,15 @@ const BASE_URL =
 // ACCESS TOKEN CACHE
 // ===========================================================
 
-let cachedToken = null;
-let tokenExpiresAt = 0;
+var cachedToken = null;
+var tokenExpiresAt = 0;
 
 // ===========================================================
 // CONFIGURATION
 // ===========================================================
 
 function getConfig() {
-  const config = {
+  var config = {
     consumerKey: process.env.MPESA_CONSUMER_KEY,
     consumerSecret: process.env.MPESA_CONSUMER_SECRET,
     shortcode: process.env.MPESA_SHORTCODE,
@@ -34,40 +29,33 @@ function getConfig() {
     callbackUrl: process.env.MPESA_CALLBACK_URL,
   };
 
-  const missing = Object.entries(config)
-    .filter(([, value]) => !value)
-    .map(([key]) => key);
+  var missing = Object.keys(config).filter(function (key) {
+    return !config[key];
+  });
 
   if (missing.length > 0) {
     throw new Error(
-      `Missing M-Pesa configuration: ${missing.join(", ")}`
+      "Missing M-Pesa configuration: " + missing.join(", ")
     );
   }
 
-  /*
-   * ---------------------------------------------------------
-   * Validate callback URL
-   * ---------------------------------------------------------
-   */
-
-  let callback;
+  var callback;
 
   try {
     callback = new URL(config.callbackUrl);
-  } catch {
-    throw new Error(
-      "MPESA_CALLBACK_URL is not a valid URL"
-    );
+  } catch (error) {
+    throw new Error("MPESA_CALLBACK_URL is not a valid URL");
   }
 
   if (callback.protocol !== "https:") {
-    throw new Error(
-      "MPESA_CALLBACK_URL must use HTTPS"
-    );
+    throw new Error("MPESA_CALLBACK_URL must use HTTPS");
   }
 
   return {
-    ...config,
+    consumerKey: config.consumerKey,
+    consumerSecret: config.consumerSecret,
+    shortcode: config.shortcode,
+    passkey: config.passkey,
     callbackUrl: callback.toString(),
   };
 }
@@ -77,71 +65,55 @@ function getConfig() {
 // ===========================================================
 
 async function getAccessToken() {
-  if (
-    cachedToken &&
-    Date.now() < tokenExpiresAt
-  ) {
+  if (cachedToken && Date.now() < tokenExpiresAt) {
     return cachedToken;
   }
 
-  const {
-    consumerKey,
-    consumerSecret,
-  } = getConfig();
+  var config = getConfig();
 
-  const auth = Buffer.from(
-    `${consumerKey}:${consumerSecret}`
+  var auth = Buffer.from(
+    config.consumerKey + ":" + config.consumerSecret
   ).toString("base64");
 
   try {
-    const response = await axios.get(
-      `${BASE_URL}/oauth/v1/generate?grant_type=client_credentials`,
+    var response = await axios.get(
+      BASE_URL + "/oauth/v1/generate?grant_type=client_credentials",
       {
         headers: {
-          Authorization: `Basic ${auth}`,
+          Authorization: "Basic " + auth,
         },
         timeout: 30000,
       }
     );
 
-    const {
-      access_token,
-      expires_in,
-    } = response.data;
+    var accessToken = response.data.access_token;
+    var expiresIn = Number(response.data.expires_in) || 3600;
 
-    if (!access_token) {
+    if (!accessToken) {
       throw new Error(
         "Safaricom did not return an access token"
       );
     }
 
-    cachedToken = access_token;
-
-    const expiresInSeconds =
-      Number(expires_in) || 3600;
+    cachedToken = accessToken;
 
     tokenExpiresAt =
-      Date.now() +
-      Math.max(
-        expiresInSeconds - 60,
-        60
-      ) *
-        1000;
+      Date.now() + Math.max(expiresIn - 60, 60) * 1000;
 
     return cachedToken;
   } catch (error) {
     cachedToken = null;
     tokenExpiresAt = 0;
 
-    const message =
-      error.response?.data?.errorMessage ||
-      error.response?.data?.error_description ||
+    var message =
+      (error.response &&
+        error.response.data &&
+        (error.response.data.errorMessage ||
+          error.response.data.error_description)) ||
       error.message ||
       "Failed to obtain M-Pesa access token";
 
-    throw new Error(
-      `M-Pesa OAuth error: ${message}`
-    );
+    throw new Error("M-Pesa OAuth error: " + message);
   }
 }
 
@@ -150,18 +122,19 @@ async function getAccessToken() {
 // ===========================================================
 
 function generateTimestamp() {
-  const d = new Date();
+  var date = new Date();
 
-  const pad = (number) =>
-    String(number).padStart(2, "0");
+  function pad(number) {
+    return String(number).padStart(2, "0");
+  }
 
   return (
-    `${d.getFullYear()}` +
-    `${pad(d.getMonth() + 1)}` +
-    `${pad(d.getDate())}` +
-    `${pad(d.getHours())}` +
-    `${pad(d.getMinutes())}` +
-    `${pad(d.getSeconds())}`
+    String(date.getFullYear()) +
+    pad(date.getMonth() + 1) +
+    pad(date.getDate()) +
+    pad(date.getHours()) +
+    pad(date.getMinutes()) +
+    pad(date.getSeconds())
   );
 }
 
@@ -170,95 +143,63 @@ function generateTimestamp() {
 // ===========================================================
 
 function generatePassword(timestamp) {
-  const {
-    shortcode,
-    passkey,
-  } = getConfig();
+  var config = getConfig();
 
-  const raw =
-    `${shortcode}${passkey}${timestamp}`;
+  var raw =
+    config.shortcode + config.passkey + timestamp;
 
   return Buffer.from(raw).toString("base64");
 }
 
 // ===========================================================
-// PHONE NORMALIZATION
+// KENYAN PHONE NUMBER NORMALIZATION
 // ===========================================================
 
 function normalizePhone(phone) {
   if (!phone) {
-    throw new Error(
-      "M-Pesa phone number is required"
-    );
+    throw new Error("M-Pesa phone number is required");
   }
 
-  let p = String(phone)
+  var normalized = String(phone)
     .trim()
     .replace(/\s+/g, "")
     .replace(/^\+/, "");
 
-  /*
-   * 0712345678
-   * 0112345678
-   */
-  if (p.startsWith("0")) {
-    p = `254${p.slice(1)}`;
-  }
-
-  /*
-   * 712345678
-   * 112345678
-   */
-  else if (
-    p.startsWith("7") ||
-    p.startsWith("1")
+  // Convert 07XXXXXXXX or 01XXXXXXXX to 254 format.
+  if (normalized.startsWith("0")) {
+    normalized = "254" + normalized.slice(1);
+  } else if (
+    normalized.startsWith("7") ||
+    normalized.startsWith("1")
   ) {
-    p = `254${p}`;
+    normalized = "254" + normalized;
   }
 
-  /*
-   * Final accepted format:
-   *
-   * 2547XXXXXXXX
-   * 2541XXXXXXXX
-   */
-  if (!/^254[17]\d{8}$/.test(p)) {
+  // Accept Kenyan mobile numbers beginning with 2547 or 2541.
+  if (!/^254[17]\d{8}$/.test(normalized)) {
     throw new Error(
       "Invalid Kenyan M-Pesa phone number. Use 07XXXXXXXX, 01XXXXXXXX, +254XXXXXXXXX, or 254XXXXXXXXX."
     );
   }
 
-  return p;
+  return normalized;
 }
 
 // ===========================================================
-// STK PUSH
+// INITIATE STK PUSH
 // ===========================================================
 
-async function initiateSTKPush({
-  phone: rawPhone,
-  amount,
-  accountReference,
-  transactionDesc,
-}) {
-  /*
-   * Get configuration.
-   *
-   * callbackUrl comes ONLY from MPESA_CALLBACK_URL.
-   */
-  const config = getConfig();
+async function initiateSTKPush(options) {
+  options = options || {};
 
-  const token = await getAccessToken();
+  var rawPhone = options.phone;
+  var amount = options.amount;
+  var accountReference = options.accountReference;
+  var transactionDesc = options.transactionDesc;
 
-  const timestamp = generateTimestamp();
-
-  const password =
-    generatePassword(timestamp);
-
-  const phone =
-    normalizePhone(rawPhone);
-
-  const numericAmount = Number(amount);
+  var config = getConfig();
+  var phone = normalizePhone(rawPhone);
+  var numericAmount = Number(amount);
 
   if (
     !Number.isFinite(numericAmount) ||
@@ -269,227 +210,150 @@ async function initiateSTKPush({
     );
   }
 
-  /*
-   * IMPORTANT:
-   *
-   * Do NOT allow the frontend or controller to override
-   * the callback URL.
-   */
-  const finalCallbackUrl =
-    config.callbackUrl;
+  var token = await getAccessToken();
+  var timestamp = generateTimestamp();
+  var password = generatePassword(timestamp);
 
-  /*
-   * Log the URL being used, but NEVER log M-Pesa secrets.
-   */
-  console.log(
-    "M-Pesa callback URL:",
-    finalCallbackUrl
-  );
+  // AccountReference is limited to 12 characters.
+  var finalAccountReference = String(
+    accountReference || "Aurelia Suites"
+  )
+    .trim()
+    .slice(0, 12);
 
-  // =========================================================
-  // SAFARICOM STK PAYLOAD
-  // =========================================================
+  // TransactionDesc is limited to 13 characters.
+  var finalTransactionDesc = String(
+    transactionDesc || "Hotel Payment"
+  )
+    .trim()
+    .slice(0, 13);
 
-  const payload = {
-    BusinessShortCode:
-      config.shortcode,
-
-    Password:
-      password,
-
-    Timestamp:
-      timestamp,
-
-    TransactionType:
-      "CustomerPayBillOnline",
-
-    Amount:
-      Math.round(numericAmount),
-
-    PartyA:
-      phone,
-
-    PartyB:
-      config.shortcode,
-
-    PhoneNumber:
-      phone,
-
-    CallBackURL:
-      finalCallbackUrl,
-
-    AccountReference: String(
-      accountReference ||
-        "Aurelia Suites"
-    ).slice(0, 12),
-
-    TransactionDesc: String(
-      transactionDesc ||
-        "Payment"
-    ).slice(0, 13),
+  var payload = {
+    BusinessShortCode: config.shortcode,
+    Password: password,
+    Timestamp: timestamp,
+    TransactionType: "CustomerPayBillOnline",
+    Amount: Math.round(numericAmount),
+    PartyA: phone,
+    PartyB: config.shortcode,
+    PhoneNumber: phone,
+    CallBackURL: config.callbackUrl,
+    AccountReference: finalAccountReference,
+    TransactionDesc: finalTransactionDesc,
   };
 
+  console.log("M-Pesa callback URL:", config.callbackUrl);
+
   try {
-    const response = await axios.post(
-      `${BASE_URL}/mpesa/stkpush/v1/processrequest`,
+    var response = await axios.post(
+      BASE_URL + "/mpesa/stkpush/v1/processrequest",
       payload,
       {
         headers: {
-          Authorization:
-            `Bearer ${token}`,
-
-          "Content-Type":
-            "application/json",
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
         },
-
         timeout: 30000,
       }
     );
 
-    const data = response.data;
+    var data = response.data;
 
-    console.log(
-      "M-Pesa STK Push response:",
-      {
-        responseCode:
-          data.ResponseCode,
-
-        responseDescription:
-          data.ResponseDescription,
-
-        checkoutRequestId:
-          data.CheckoutRequestID,
-      }
-    );
+    console.log("M-Pesa STK Push response:", {
+      responseCode: data.ResponseCode,
+      responseDescription: data.ResponseDescription,
+      checkoutRequestId: data.CheckoutRequestID,
+    });
 
     return data;
   } catch (error) {
-    const safaricomResponse =
-      error.response?.data;
+    var safaricomResponse =
+      error.response && error.response.data;
 
-    console.error(
-      "M-Pesa STK Push failed:",
-      {
-        status:
-          error.response?.status,
+    console.error("M-Pesa STK Push failed:", {
+      status: error.response && error.response.status,
+      errorCode:
+        safaricomResponse && safaricomResponse.errorCode,
+      errorMessage:
+        safaricomResponse && safaricomResponse.errorMessage,
+      responseCode:
+        safaricomResponse && safaricomResponse.ResponseCode,
+      responseDescription:
+        safaricomResponse &&
+        safaricomResponse.ResponseDescription,
+    });
 
-        errorCode:
-          safaricomResponse?.errorCode,
-
-        errorMessage:
-          safaricomResponse?.errorMessage,
-
-        responseCode:
-          safaricomResponse?.ResponseCode,
-
-        responseDescription:
-          safaricomResponse
-            ?.ResponseDescription,
-      }
-    );
-
-    const message =
-      safaricomResponse?.errorMessage ||
-      safaricomResponse?.ResponseDescription ||
+    var message =
+      (safaricomResponse &&
+        (safaricomResponse.errorMessage ||
+          safaricomResponse.ResponseDescription)) ||
       error.message ||
       "M-Pesa STK Push failed";
 
-    throw new Error(
-      `M-Pesa STK Push failed: ${message}`
-    );
+    throw new Error("M-Pesa STK Push failed: " + message);
   }
 }
 
 // ===========================================================
-// STK QUERY
+// QUERY STK PUSH STATUS
 // ===========================================================
 
-async function querySTKPushStatus(
-  checkoutRequestId
-) {
+async function querySTKPushStatus(checkoutRequestId) {
   if (!checkoutRequestId) {
-    throw new Error(
-      "CheckoutRequestID is required"
-    );
+    throw new Error("CheckoutRequestID is required");
   }
 
-  const config = getConfig();
+  var config = getConfig();
+  var token = await getAccessToken();
+  var timestamp = generateTimestamp();
+  var password = generatePassword(timestamp);
 
-  const token =
-    await getAccessToken();
-
-  const timestamp =
-    generateTimestamp();
-
-  const password =
-    generatePassword(timestamp);
-
-  const payload = {
-    BusinessShortCode:
-      config.shortcode,
-
-    Password:
-      password,
-
-    Timestamp:
-      timestamp,
-
-    CheckoutRequestID:
-      checkoutRequestId,
+  var payload = {
+    BusinessShortCode: config.shortcode,
+    Password: password,
+    Timestamp: timestamp,
+    CheckoutRequestID: checkoutRequestId,
   };
 
   try {
-    const response = await axios.post(
-      `${BASE_URL}/mpesa/stkpushquery/v1/query`,
+    var response = await axios.post(
+      BASE_URL + "/mpesa/stkpushquery/v1/query",
       payload,
       {
         headers: {
-          Authorization:
-            `Bearer ${token}`,
-
-          "Content-Type":
-            "application/json",
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
         },
-
         timeout: 30000,
       }
     );
 
     return response.data;
   } catch (error) {
-    const safaricomResponse =
-      error.response?.data;
+    var safaricomResponse =
+      error.response && error.response.data;
 
-    console.error(
-      "M-Pesa STK query failed:",
-      {
-        status:
-          error.response?.status,
+    console.error("M-Pesa STK query failed:", {
+      status: error.response && error.response.status,
+      errorCode:
+        safaricomResponse && safaricomResponse.errorCode,
+      errorMessage:
+        safaricomResponse && safaricomResponse.errorMessage,
+      responseCode:
+        safaricomResponse && safaricomResponse.ResponseCode,
+      responseDescription:
+        safaricomResponse &&
+        safaricomResponse.ResponseDescription,
+    });
 
-        errorCode:
-          safaricomResponse?.errorCode,
-
-        errorMessage:
-          safaricomResponse?.errorMessage,
-
-        responseCode:
-          safaricomResponse?.ResponseCode,
-
-        responseDescription:
-          safaricomResponse
-            ?.ResponseDescription,
-      }
-    );
-
-    const message =
-      safaricomResponse?.errorMessage ||
-      safaricomResponse?.ResponseDescription ||
+    var message =
+      (safaricomResponse &&
+        (safaricomResponse.errorMessage ||
+          safaricomResponse.ResponseDescription)) ||
       error.message ||
       "M-Pesa STK query failed";
 
-    throw new Error(
-      `M-Pesa STK query failed: ${message}`
-    );
+    throw new Error("M-Pesa STK query failed: " + message);
   }
 }
 
@@ -498,8 +362,8 @@ async function querySTKPushStatus(
 // ===========================================================
 
 module.exports = {
-  getAccessToken,
-  initiateSTKPush,
-  querySTKPushStatus,
-  normalizePhone,
+  getAccessToken: getAccessToken,
+  initiateSTKPush: initiateSTKPush,
+  querySTKPushStatus: querySTKPushStatus,
+  normalizePhone: normalizePhone,
 };
