@@ -1,261 +1,323 @@
-import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Receipt, RefreshCw } from "lucide-react";
-import { api } from "../../lib/api";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
-export const Route = createFileRoute("/customer/orders")({
-  component: CustomerOrders,
-});
+import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
-interface OrderItem {
-  menuItem: string | { _id: string; name?: string };
-  name?: string;
-  quantity: number;
-  price: number;
-}
-
-interface Order {
+export interface PayableOrder {
   _id: string;
   orderNumber: string;
-  type: "DineIn" | "RoomService" | "Takeaway";
-  items: OrderItem[];
-  status:
-    | "Pending"
-    | "Preparing"
-    | "Ready"
-    | "Served"
-    | "Completed"
-    | "Cancelled";
-  total?: number;
-  placedAt: string;
+  total: number;
+  status: string;
+  paymentStatus?: "Unpaid" | "Paid";
 }
 
-function CustomerOrders() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+interface OrderPaymentProps {
+  order: PayableOrder;
+  /** What is being paid for. Defaults to a restaurant order. */
+  source?: "Order" | "Reservation";
+  /** Short description shown on the M-Pesa prompt (max 13 characters). */
+  transactionDesc?: string;
+  /** Called after M-Pesa confirms payment, so the page can reload its orders. */
+  onPaid?: () => void;
+}
+
+interface StkResponse {
+  status: string;
+  message?: string;
+  sandbox?: boolean;
+  data?: { checkoutRequestId?: string };
+}
+
+interface StatusResponse {
+  status: string;
+  data?: { status?: "Pending" | "Success" | "Failed" | "Cancelled" };
+}
+
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLLS = 20; // about 60 seconds
+
+// Accepts 07XXXXXXXX, 01XXXXXXXX, +2547XXXXXXXX, 2547XXXXXXXX
+// (same formats the server accepts).
+function isValidKenyanPhone(value: string): boolean {
+  const cleaned = value.trim().replace(/\s+/g, "").replace(/^\+/, "");
+  return /^(0|254)[17]\d{8}$/.test(cleaned);
+}
+
+export function OrderPayment({
+  order,
+  onPaid,
+  source = "Order",
+  transactionDesc = "Restaurant",
+}: OrderPaymentProps) {
+  const { user } = useAuth();
+
+  const savedPhone =
+    (user as { phone?: string } | null | undefined)?.phone ?? "";
+
+  const [showForm, setShowForm] = useState(false);
+  const [phone, setPhone] = useState(savedPhone);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
-  async function loadOrders() {
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await api.get<{ data: Order[] }>("/orders");
-
-      setOrders(response.data || []);
-    } catch (err) {
-      console.error(err);
-      setError("Unable to load your orders.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [sandbox, setSandbox] = useState(false);
+  const [checkoutId, setCheckoutId] = useState("");
+  const [simulating, setSimulating] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelled = useRef(false);
 
   useEffect(() => {
-    loadOrders();
+    cancelled.current = false;
+
+    return () => {
+      cancelled.current = true;
+      if (timer.current) clearTimeout(timer.current);
+    };
   }, []);
 
-  function statusClass(status: Order["status"]) {
-    switch (status) {
-      case "Pending":
-        return "bg-yellow-100 text-yellow-700";
+  if (order.paymentStatus === "Paid") {
+    return (
+      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+        Paid
+      </span>
+    );
+  }
 
-      case "Preparing":
-        return "bg-blue-100 text-blue-700";
+  if (order.status === "Cancelled") {
+    return null;
+  }
 
-      case "Ready":
-        return "bg-green-100 text-green-700";
+  const phoneValid = isValidKenyanPhone(phone);
 
-      case "Served":
-        return "bg-purple-100 text-purple-700";
+  function pollStatus(checkoutRequestId: string, attempt = 0) {
+    timer.current = setTimeout(async () => {
+      if (cancelled.current) return;
 
-      case "Completed":
-        return "bg-green-100 text-green-700";
+      try {
+        const response = await api.get<StatusResponse>(
+          `/mpesa/status/${checkoutRequestId}`,
+        );
 
-      case "Cancelled":
-        return "bg-red-100 text-red-700";
+        const state = response.data?.status;
 
-      default:
-        return "bg-slate-100 text-slate-700";
+        if (cancelled.current) return;
+
+        if (state === "Success") {
+          setBusy(false);
+          setShowForm(false);
+          setError("");
+          setMessage("Payment received. Thank you!");
+          onPaid?.();
+          return;
+        }
+
+        if (state === "Cancelled") {
+          setBusy(false);
+          setMessage("");
+          setError("You cancelled the payment prompt.");
+          return;
+        }
+
+        if (state === "Failed") {
+          setBusy(false);
+          setMessage("");
+          setError("The payment failed. Please try again.");
+          return;
+        }
+      } catch {
+        // Ignore a single failed poll and keep trying until the limit.
+      }
+
+      if (attempt + 1 >= MAX_POLLS) {
+        setBusy(false);
+        setMessage(
+          "Still waiting for confirmation. If you completed the payment, tap Refresh in a moment.",
+        );
+        return;
+      }
+
+      pollStatus(checkoutRequestId, attempt + 1);
+    }, POLL_INTERVAL_MS);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (busy) return;
+
+    if (!phoneValid) {
+      setError("Enter a valid M-Pesa number, e.g. 0712345678.");
+      return;
+    }
+
+    try {
+      setBusy(true);
+      setError("");
+      setMessage("");
+
+      const response = await api.post<StkResponse>("/mpesa/stk-push", {
+        phone: phone.trim(),
+        // The server uses the order's real total; this value is only
+        // sent because the endpoint requires an amount.
+        amount: Math.round(order.total),
+        source,
+        sourceId: order._id,
+        accountReference: order.orderNumber,
+        transactionDesc,
+      });
+
+      setMessage(
+        response.message ||
+          "Check your phone and enter your M-Pesa PIN to complete payment.",
+      );
+
+      const checkoutRequestId = response.data?.checkoutRequestId;
+
+      setSandbox(Boolean(response.sandbox));
+      setCheckoutId(checkoutRequestId ?? "");
+
+      if (checkoutRequestId) {
+        pollStatus(checkoutRequestId);
+      } else {
+        setBusy(false);
+      }
+    } catch (err) {
+      setBusy(false);
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Unable to start payment. Please try again.",
+      );
     }
   }
 
-  function formatDate(date: string) {
-    return new Date(date).toLocaleString();
+  // Sandbox only: the Safaricom sandbox never sends a real prompt, so this
+  // lets you complete the payment yourself to test the full flow.
+  async function handleSimulate() {
+    if (!checkoutId || simulating) return;
+
+    try {
+      setSimulating(true);
+      setError("");
+
+      await api.post(`/mpesa/sandbox/complete/${checkoutId}`);
+
+      if (timer.current) clearTimeout(timer.current);
+
+      setBusy(false);
+      setShowForm(false);
+      setMessage("Sandbox payment simulated. Order marked as paid.");
+      onPaid?.();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Unable to simulate the sandbox payment.",
+      );
+    } finally {
+      setSimulating(false);
+    }
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-5">
-            <Link
-              to="/customer"
-              className="flex items-center gap-2 text-slate-600 hover:text-blue-600"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Home
-            </Link>
-
-            <h1 className="text-xl font-bold text-slate-900">
-              My Orders
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Link
-              to="/customer/restaurant"
-              className="text-sm font-semibold text-orange-600 hover:underline"
-            >
-              Order Food
-            </Link>
-
-            <button
-              type="button"
-              onClick={loadOrders}
-              disabled={loading}
-              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-900">
-            Your Orders
-          </h2>
-
-          <p className="mt-2 text-slate-500">
-            Track the restaurant orders you have placed.
+    <div className="flex flex-col gap-2">
+      {!showForm ? (
+        <button
+          type="button"
+          onClick={() => {
+            setShowForm(true);
+            setError("");
+            setMessage("");
+          }}
+          className="w-fit rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+        >
+          Pay with M-Pesa
+        </button>
+      ) : (
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:max-w-sm"
+        >
+          <p className="text-sm text-slate-700">
+            Amount to pay:{" "}
+            <span className="font-bold text-slate-900">
+              KSh {Math.round(order.total).toLocaleString()}
+            </span>
           </p>
-        </div>
 
-        {loading ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
-            <p className="text-slate-500">Loading your orders...</p>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-700">
-            {error}
+          <label
+            htmlFor={`mpesa-phone-${order._id}`}
+            className="text-sm font-medium text-slate-700"
+          >
+            M-Pesa phone number
+          </label>
+
+          <input
+            id={`mpesa-phone-${order._id}`}
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="0712345678"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            disabled={busy}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:opacity-60"
+          />
+
+          <p className="text-xs text-slate-500">
+            You will receive a prompt on this number and must enter your
+            M-Pesa PIN to approve it. Nothing is charged before that.
+          </p>
+
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={busy || !phoneValid}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {busy ? "Waiting for payment..." : "Send prompt"}
+            </button>
 
             <button
               type="button"
-              onClick={loadOrders}
-              className="block mt-4 font-semibold underline"
+              onClick={() => setShowForm(false)}
+              disabled={busy}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:opacity-60"
             >
-              Try again
+              Cancel
             </button>
           </div>
-        ) : orders.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-            <Receipt className="w-14 h-14 mx-auto text-slate-300" />
+        </form>
+      )}
 
-            <h3 className="mt-5 text-xl font-bold text-slate-900">
-              No orders yet
-            </h3>
+      {sandbox && checkoutId && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:max-w-sm">
+          <p className="font-semibold">Sandbox mode</p>
+          <p className="mt-1">
+            The test environment does not send a real prompt to a phone.
+            Use the button below to simulate the customer paying.
+          </p>
+          <button
+            type="button"
+            onClick={handleSimulate}
+            disabled={simulating}
+            className="mt-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60"
+          >
+            {simulating ? "Simulating..." : "Simulate successful payment"}
+          </button>
+        </div>
+      )}
 
-            <p className="mt-2 text-slate-500">
-              Browse our restaurant menu and place your first order.
-            </p>
+      {message && (
+        <p role="status" className="text-sm text-emerald-700">
+          {message}
+        </p>
+      )}
 
-            <Link
-              to="/customer/restaurant"
-              className="inline-block mt-6 rounded-lg bg-orange-600 px-5 py-3 font-semibold text-white hover:bg-orange-700"
-            >
-              Browse Restaurant
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {orders.map((order) => (
-              <div
-                key={order._id}
-                className="bg-white border border-slate-200 rounded-xl p-6"
-              >
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      {order.orderNumber}
-                    </h3>
-
-                    <p className="text-sm text-slate-500 mt-1">
-                      {formatDate(order.placedAt)}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      {order.type}
-                    </span>
-
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass(
-                        order.status,
-                      )}`}
-                    >
-                      {order.status}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-5 border-t border-slate-100 pt-5">
-                  <div className="space-y-3">
-                    {order.items.map((item, index) => (
-                      <div
-                        key={`${order._id}-${index}`}
-                        className="flex justify-between gap-4 text-sm"
-                      >
-                        <div>
-                          <span className="font-semibold text-slate-900">
-                            {item.name ||
-                              (typeof item.menuItem === "object"
-                                ? item.menuItem.name
-                                : "Menu item")}
-                          </span>
-
-                          <span className="text-slate-500">
-                            {" "}
-                            × {item.quantity}
-                          </span>
-                        </div>
-
-                        <span className="font-semibold text-slate-700">
-                          KSh{" "}
-                          {(
-                            item.price * item.quantity
-                          ).toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-5 border-t border-slate-200 pt-5 flex justify-between items-center">
-                  <span className="font-semibold text-slate-600">
-                    Total
-                  </span>
-
-                  <span className="text-xl font-bold text-slate-900">
-                    KSh{" "}
-                    {(
-                      order.total ??
-                      order.items.reduce(
-                        (sum, item) =>
-                          sum + item.price * item.quantity,
-                        0,
-                      )
-                    ).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

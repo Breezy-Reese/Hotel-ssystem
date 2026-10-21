@@ -1,3 +1,4 @@
+
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -44,14 +45,14 @@ export const Route = createFileRoute("/rooms")({
       { title: "Room Management — Aurelia Suites" },
       {
         name: "description",
-        content: "Manage rooms, prices, amenities and room photographs.",
+        content: "Manage hotel rooms, pricing, amenities and photographs.",
       },
     ],
   }),
   component: RoomsPage,
 });
 
-const ROOM_TYPES: RoomType[] = [
+const roomTypes: RoomType[] = [
   "Single",
   "Double",
   "Deluxe",
@@ -59,7 +60,7 @@ const ROOM_TYPES: RoomType[] = [
   "Suite",
 ];
 
-const STATUS_VARIANT: Record<
+const statusVariant: Record<
   RoomStatus,
   "default" | "secondary" | "destructive" | "outline"
 > = {
@@ -72,20 +73,14 @@ const STATUS_VARIANT: Record<
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_FILES = 8;
-const MAX_IMAGES_PER_ROOM = 20;
+const MAX_ROOM_IMAGES = 20;
 
-const ALLOWED_IMAGE_TYPES = new Set([
+const acceptedImageTypes = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/avif",
 ]);
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Something went wrong. Please try again.";
-}
 
 function RoomPhotos({ room }: { room: Room }) {
   const queryClient = useQueryClient();
@@ -100,19 +95,19 @@ function RoomPhotos({ room }: { room: Room }) {
     const files = Array.from(input.files ?? []);
     input.value = "";
 
-    if (files.length === 0) return;
+    if (!files.length) return;
 
     if (files.length > MAX_FILES) {
-      toast.error(`Choose no more than ${MAX_FILES} photos at a time.`);
+      toast.error(`Upload a maximum of ${MAX_FILES} photos at a time.`);
       return;
     }
 
-    if (images.length + files.length > MAX_IMAGES_PER_ROOM) {
-      toast.error(`A room can have at most ${MAX_IMAGES_PER_ROOM} photos.`);
+    if (images.length + files.length > MAX_ROOM_IMAGES) {
+      toast.error(`A room can have a maximum of ${MAX_ROOM_IMAGES} photos.`);
       return;
     }
 
-    if (files.some((file) => !ALLOWED_IMAGE_TYPES.has(file.type))) {
+    if (files.some((file) => !acceptedImageTypes.has(file.type))) {
       toast.error("Use JPEG, PNG, WEBP or AVIF image files.");
       return;
     }
@@ -130,13 +125,17 @@ function RoomPhotos({ room }: { room: Room }) {
     try {
       await api.upload(`/rooms/${room._id}/images`, formData);
 
-      await queryClient.invalidateQueries({
-        queryKey: ["rooms"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["rooms"] });
 
       toast.success("Room photos uploaded successfully.");
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Unable to upload room photos.",
+      );
     } finally {
       setUploading(false);
     }
@@ -150,7 +149,7 @@ function RoomPhotos({ room }: { room: Room }) {
         accept="image/jpeg,image/png,image/webp,image/avif"
         multiple
         className="hidden"
-        aria-label={`Choose photos for room ${room.roomNumber}`}
+        aria-label={`Select photos for room ${room.roomNumber}`}
         onChange={handleUpload}
       />
 
@@ -191,12 +190,12 @@ function RoomPhotos({ room }: { room: Room }) {
         variant="outline"
         size="sm"
         className="w-fit gap-2"
-        disabled={uploading || images.length >= MAX_IMAGES_PER_ROOM}
+        disabled={uploading || images.length >= MAX_ROOM_IMAGES}
         onClick={() => inputRef.current?.click()}
       >
         {uploading ? (
           <LoaderCircle className="size-4 animate-spin" />
-        ) : images.length > 0 ? (
+        ) : images.length ? (
           <ImagePlus className="size-4" />
         ) : (
           <Upload className="size-4" />
@@ -204,13 +203,13 @@ function RoomPhotos({ room }: { room: Room }) {
 
         {uploading
           ? "Uploading..."
-          : images.length > 0
+          : images.length
             ? "Manage photos"
             : "Upload photos"}
       </Button>
 
       <span className="text-xs text-muted-foreground">
-        {images.length}/{MAX_IMAGES_PER_ROOM} photos
+        {images.length}/{MAX_ROOM_IMAGES} photos
       </span>
     </div>
   );
@@ -246,7 +245,7 @@ const columns: LiveColumn<Room>[] = [
   {
     header: "Status",
     render: (room) => (
-      <Badge variant={STATUS_VARIANT[room.status]}>
+      <Badge variant={statusVariant[room.status]}>
         {room.status}
       </Badge>
     ),
@@ -325,7 +324,11 @@ function RoomsPage() {
       setDialogOpen(false);
       formElement.reset();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "Failed to add room.",
+      );
     }
   }
 
@@ -333,7 +336,7 @@ function RoomsPage() {
     <>
       <ModulePage
         title="Room Management"
-        description="Manage rooms, rates, amenities and photographs for your guests."
+        description="Manage rooms, rates, amenities and photographs shown to customers."
         action="Add room"
         onAction={() => setDialogOpen(true)}
         stats={[
@@ -408,12 +411,6 @@ function RoomsPage() {
               </div>
             </div>
 
-            {branches.length === 0 && (
-              <p className="text-sm text-destructive">
-                Add a branch before creating a room.
-              </p>
-            )}
-
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="type">Room type</Label>
@@ -422,7 +419,7 @@ function RoomsPage() {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROOM_TYPES.map((type) => (
+                    {roomTypes.map((type) => (
                       <SelectItem key={type} value={type}>
                         {type}
                       </SelectItem>
@@ -477,9 +474,7 @@ function RoomsPage() {
 
               <Button
                 type="submit"
-                disabled={
-                  createRoom.isPending || branches.length === 0
-                }
+                disabled={createRoom.isPending || branches.length === 0}
               >
                 {createRoom.isPending ? "Adding..." : "Add room"}
               </Button>
